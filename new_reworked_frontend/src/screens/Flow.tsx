@@ -3,10 +3,10 @@ import { ArrowRight, CornerDownLeft } from 'lucide-react'
 
 const STEPS: { n: string; name: string; src: string; does: string; system: string }[] = [
   { n: '01', name: 'Onboard', src: '/onboard/skills?demo', does: 'Phone, ID, vehicle, skills, gear, permissions.', system: 'POST /volunteers' },
-  { n: '02', name: 'Map / Feed', src: '/map?scene=browse', does: 'Sees closures, flooding, requests that fit.', system: 'GET /state, WebSocket' },
+  { n: '02', name: 'Map / Feed', src: '/map?scene=browse', does: 'Sees closures, gauges and the request that fits best.', system: 'GET /state, WebSocket' },
   { n: '03', name: 'Task matched', src: '/map?scene=offer', does: 'Banner: you are needed nearby.', system: 'PostGIS KNN → filters → road ETA' },
   { n: '04', name: 'Notification', src: '/lock?scene=offer', does: 'Same offer on a locked phone.', system: 'assignment OFFERED' },
-  { n: '05', name: 'Review task', src: '/task/1?scene=offer', does: 'What, where, who asked, why you, safety.', system: 'task + incident sources' },
+  { n: '05', name: 'Review task', src: '/task/10?scene=offer', does: 'What, where, who asked, why you, safety.', system: 'task + incident sources' },
   { n: '06', name: 'Accept', src: '/active?scene=active', does: 'One tap; route starts drawing.', system: 'POST /assignments/:id/accept' },
   { n: '07', name: 'Navigate / perform', src: '/active?scene=arrived', does: 'Turns, reroute notice, checklist. At the door: Yes, I did it.', system: 'closure-aware routing' },
   { n: '08', name: 'Complete + verify', src: '/done?scene=done', does: 'One tap. The backend checks your GPS is within 200 m.', system: 'POST /assignments/:id/complete' },

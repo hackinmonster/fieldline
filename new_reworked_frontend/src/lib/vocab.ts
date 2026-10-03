@@ -1,5 +1,5 @@
 import {
-  Droplets, HeartPulse, MessageCircle, Car, Eye, Home, Fuel, Cross, Package, Radio, TrafficCone, Waves, User, HandHelping, Building2,
+  Droplets, HeartPulse, MessageCircle, MessageSquareText, Car, Eye, Home, Fuel, Cross, Package, Radio, TrafficCone, Waves, HandHelping, Building2,
   type LucideIcon,
 } from 'lucide-react'
 import type { SourceType, TaskType, Resource } from './types'
@@ -47,14 +47,15 @@ export const TASK_KIND: Record<TaskType, { label: string; short: string; icon: L
 }
 
 export const SOURCE: Record<SourceType, { label: string; icon: LucideIcon; official: boolean }> = {
-  resident: { label: 'Resident', icon: User, official: false },
-  social: { label: 'Social post', icon: MessageCircle, official: false },
+  // Same names and icons as the Command dashboard (frontend/src/api.ts SOURCES).
+  social: { label: 'Social media', icon: MessageCircle, official: false },
+  ngo: { label: 'NGO request', icon: Building2, official: false },
   shelter: { label: 'Shelter', icon: Home, official: false },
-  ngo: { label: 'Relief org', icon: Building2, official: false },
-  volunteer: { label: 'Volunteer', icon: HandHelping, official: false },
-  radio: { label: 'Public safety radio', icon: Radio, official: true },
-  ncdot: { label: 'NCDOT', icon: TrafficCone, official: true },
-  usgs: { label: 'USGS gauge', icon: Waves, official: true },
+  resident: { label: 'SMS / hotline', icon: MessageSquareText, official: false },
+  radio: { label: 'Public-safety radio', icon: Radio, official: true },
+  volunteer: { label: 'Volunteer field report', icon: HandHelping, official: false },
+  ncdot: { label: 'NCDOT road feed', icon: TrafficCone, official: true },
+  usgs: { label: 'USGS river gauge', icon: Waves, official: true },
 }
 
 export const RESOURCE: Record<Resource['kind'], { label: string; icon: LucideIcon }> = {
@@ -62,6 +63,16 @@ export const RESOURCE: Record<Resource['kind'], { label: string; icon: LucideIco
   water: { label: 'Water & food', icon: Droplets },
   fuel: { label: 'Fuel', icon: Fuel },
   medical: { label: 'Medical', icon: Cross },
+}
+
+/** Feed grouping from the backend's observation category (NEED / HAZARD / INFRASTRUCTURE / STATUS). */
+export type PostKind = 'need' | 'road' | 'hazard' | 'info'
+export function postKind(o: { category: string | null; source_type: string }): PostKind {
+  const c = (o.category ?? '').toUpperCase()
+  if (c === 'NEED') return 'need'
+  if (c === 'INFRASTRUCTURE' || o.source_type === 'ncdot') return 'road'
+  if (c === 'HAZARD') return 'hazard'
+  return 'info'
 }
 
 /** The backend ends a task at COMPLETED (older builds used VERIFIED). */

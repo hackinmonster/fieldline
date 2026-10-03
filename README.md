@@ -22,7 +22,9 @@ One FastAPI process with four module boundaries, an in-process event bus, and a 
 | Coordination | `backend/app/coordination/` | Matching, closure-aware routing on the OSM drive graph, adaptation ladder |
 | Core State/API | `backend/app/state/` | Volunteers, assignments, snapshot reads, task state machine |
 
-Clients (`frontend/`): `/command` (layered geospatial dashboard: ingestion → synthesis → dispatch story, plus system log) and `/volunteer` (mobile volunteer app in a phone frame: lock-screen push → mission → accept; its map shows only you, the destination and the route).
+Clients share one design system (Fieldline: tokens in `new_reworked_frontend/src/styles/tokens.css`, rules in `new_reworked_frontend/DESIGN.md`):
+- `frontend/` → **Fieldline Command** at `/command`: layered geospatial dashboard (ingestion → synthesis → dispatch story, plus system log).
+- `new_reworked_frontend/` → **Fieldline**, the volunteer phone app: map with your best match, feed of the same reports command sees, matched tasks, offer → navigate → *Yes, I did it*. `/volunteer` on the dashboard redirects here.
 
 ## REAL vs DEMO-STUB
 
@@ -40,13 +42,14 @@ We are explicit about what generalizes and what exists only for the demo.
 | Arrival detection | **REAL** | GPS geofence (200 m of the task) on every location update |
 | Road closures | **REAL** | Any closure (NCDOT line, radio point) snaps to OSM segments and is removed from routing |
 | Adaptation ladder | **REAL** | Every closure is checked against every active route; REROUTE vs REASSIGN is an AI judgment over concrete ETAs (deterministic fallback); ESCALATE when unreachable; BLOCKED tasks retried on reopen / new availability |
-| Completion | **By design: trust the volunteer** | Volunteers are unpaid neighbors, so no photo proof. GPS already shows them on scene; they tap *Mark complete* (optional note to command) → task COMPLETED → incident RESOLVED |
+| Completion | **By design: trust the volunteer, check the location** | Volunteers are unpaid neighbors, so no photo proof. They tap *Yes, I did it*; `POST /assignments/{id}/complete` only accepts it when their last GPS fix is within 200 m of the task → task COMPLETED → incident RESOLVED |
+| Changing your mind | **REAL** | A declined task stays in the volunteer's list; `POST /tasks/{id}/claim` lets them take it while nobody has accepted it (a pending offer to someone else is withdrawn) |
 | River gauge observations | **REAL** | Readings stream into a hypertable; crossing the official NWS flood stage emits an observation |
 | Replay clock / historical streaming | **DEMO-STUB (by design)** | `backend/app/demo/runner.py` (dashboard *Load scenario*) streams the real feeds + scenario reports through the ingestion functions in time order, waiting for the pipeline after each report. Backend reads time only via `clock.sim_now()` |
 | Volunteer GPS movement + fast-forward | **DEMO-STUB** | `runner.Movement` moves volunteers along their ACCEPTED route (arriving at the routed ETA) via the same location function a phone would call, and runs the clock at `travel_speed` (30×) while someone drives |
 | Candidate reveal pacing on the dashboard | **Presentation only** | The decision is already made when the animation starts; scan → filter → rank → chosen just paces real results |
-| `/volunteer` auto-follow | **DEMO-STUB login** | With no `?id=`, the phone shows whoever was most recently dispatched, so the tab can be opened before the match |
-| Rerouting UI | **Removed from demo** | Turn-by-turn and rerouting belong to the volunteer's maps app (the phone links out to Google/Apple Maps). The backend adaptation ladder still exists (`ladder_check.py`) |
+| Fieldline `?as=follow` | **DEMO-STUB login** | The phone becomes whoever was most recently dispatched, so it can be opened before the match. `?as=<id>` signs in as a roster volunteer |
+| Rerouting UI | **Shown when it happens** | Fieldline draws the routed path with turn-by-turn steps when the backend provides them and shows a notice when an assignment is rerouted; the adaptation ladder is exercised by `ladder_check.py` |
 | Resident reports, radio transcripts, volunteer roster | **DEMO-STUB data, REAL logic** | Hand-authored in `replay/scenario.yaml`; no code paths reference them |
 | Scenario geography | **Scenario authoring** | Reports sit at real Buncombe roads/places (Bee Tree Rd, Dillingham Rd, Pisgah Hwy, …); social posts carry geotags, the rest are geocoded live. Which volunteer wins each incident is decided by the matcher, not the scenario |
 
@@ -90,18 +93,19 @@ uv venv backend/.venv && uv pip install --python backend/.venv/bin/python \
 cp backend/.env.example backend/.env                   # add OPENAI_API_KEY
 for s in fetch_ncdot fetch_usgs load_tiger_acs load_nhc build_graph load_db; do backend/.venv/bin/python backend/scripts/$s.py; done
 (cd backend && .venv/bin/uvicorn app.main:app --port 8000)
-(cd frontend && npm install && npm run dev)            # http://localhost:5173/command and /volunteer
+(cd frontend && npm install && npm run dev)            # http://localhost:5173/command
+(cd new_reworked_frontend && npm install && npm run dev)  # http://localhost:5174, the Fieldline volunteer app
 ```
 
 ## Demo runbook (3–4 min, all from the browser)
 
-**Before judges arrive:** open `/command` and press **Load scenario**. It takes 2–3 min of real LLM processing: 26 NCDOT closures and 76 USGS readings from Helene, plus 15 social / NGO / SMS / radio reports, come out as 11 incidents and 10 tasks. It survives backend restarts. Open `/volunteer` in a second tab: it shows a lock screen until someone is dispatched. Between rehearsals, use **↺ Rewind demo**. It undoes dispatches and movement in about a second and keeps the ingested incidents.
+**Before judges arrive:** open `/command` and press **Load scenario**. It takes 2–3 min of real LLM processing: 26 NCDOT closures and 76 USGS readings from Helene, plus 15 social / NGO / SMS / radio reports, come out as 11 incidents and 10 tasks. It survives backend restarts. Open the Fieldline volunteer app from the dashboard footer (*Volunteer app*) in a second tab: it follows whoever is dispatched next. Between rehearsals, use **↺ Rewind demo**. It undoes dispatches and movement in about a second and keeps the ingested incidents.
 
 1. **Ingestion.** Toggle the *Incoming reports* layers on the map one at a time (social media, NGO & shelter, SMS, radio), then *Conditions* (NCDOT closures, Helene track, USGS gauges, census 65+). The side panel counts what came in from each source.
 2. **Synthesis.** Turn the report layers back off. Eleven incidents are on the map, all built by the same pipeline. Click **Deliver drinking water… Bee Tree Rd**. Its three sources (daughter's SMS, a neighbor's Facebook post, a church outreach list) are drawn as lines into one incident. The panel plays sources → what the LLM understood → link decisions ("merged into same incident") → the task, its hard requirements and the guardrail verdict. For contrast, click the swift-water radio call: no task, because it's a 911 job.
-3. **Match.** Press **▶ Find the best volunteer**. The map scans 16 nearby volunteers, then rules some out with reasons (no vehicle, cargo too small), then ranks the rest by road ETA and picks one. Click any dot for that volunteer's profile and verdict.
-4. **Phone.** Switch to the `/volunteer` tab (or press *Open …'s phone*). A push notification drops onto the lock screen. Tap it to read the mission: why you, what to bring, what's needed. Press **Accept mission**.
-5. **Back to the dashboard.** The route turns solid and the volunteer drives at 30× fast-forward. The progress bar counts down, and **On scene** lights up when GPS enters the geofence. *(Optional finale: tap **Mark complete** on the phone → incident turns green, resolved.)*
+3. **Match.** Press **Find the best volunteer**. The map scans 16 nearby volunteers, then rules some out with reasons (no vehicle, cargo too small), then ranks the rest by road ETA and picks one. Click any dot for that volunteer's profile and verdict.
+4. **Phone.** Switch to the Fieldline tab (or press *Open …'s phone*). *You are needed nearby* drops in. Tap it to read the task: who asked, why you, what to bring, safety. Press **Accept and navigate**.
+5. **Back to the dashboard.** The route turns solid and the volunteer drives at 30× fast-forward. The progress bar counts down, and **On scene** lights up when GPS enters the geofence. *(Optional finale: at the address, tap **Yes, I did it** on the phone → the backend checks the GPS fix → incident turns green, resolved.)*
 
 ### Checks
 - `replay/replayer.py` — loads the scenario from the terminal (same as the dashboard button).

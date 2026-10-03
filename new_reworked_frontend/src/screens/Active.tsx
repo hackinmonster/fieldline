@@ -81,7 +81,7 @@ export default function Active() {
     <div className="active">
       <MapCanvas snap={snap} me={me} route={{ line: assignment.route!, kind: 'active' }} mineTaskId={task.id} selectedTaskId={task.id}
         filter={(t) => t.id === task.id}
-        layers={{ tasks: true, closures: true, flood: true, resources: false, gauges: false, volunteers: false, reports: false }}
+        layers={{ tasks: true, closures: true, resources: false, gauges: false, volunteers: false, reports: false }}
         follow={nav_ ? { heading: nav_.heading } : null} padBottom={open ? 420 : 220} />
 
       <div className="maneuver" role="status" aria-live="polite">

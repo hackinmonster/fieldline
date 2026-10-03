@@ -61,7 +61,7 @@ export default function TaskReview() {
     <div className="review">
       <div className="review-map">
         <MapCanvas ref={mapRef} snap={snap} me={me} route={route} selectedTaskId={t.id} mineTaskId={offered ? t.id : null}
-          layers={{ tasks: true, closures: true, flood: true, resources: false, gauges: false, volunteers: false, reports: false }}
+          layers={{ tasks: true, closures: true, resources: false, gauges: false, volunteers: false, reports: false }}
           filter={(x) => x.id === t.id} interactive={false}
           initial={{ center: [(coords[0][0] + t.lon) / 2, (coords[0][1] + t.lat) / 2], zoom: coords.length > 2 ? 11.3 : 11.8 }} />
         <IconButton icon={ArrowLeft} label="Back" className="glass review-back" onClick={() => nav(-1)} />

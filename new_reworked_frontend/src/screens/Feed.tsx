@@ -6,12 +6,13 @@ import FeedPost from '../components/FeedPost'
 import ReportSheet from '../components/ReportSheet'
 import { Button, Empty, ScreenHeader, Skeleton } from '../components/ui'
 import { meters, type LonLat } from '../lib/geo'
+import { postKind } from '../lib/vocab'
 
 const TABS = [
   { id: 'all', label: 'All' },
   { id: 'need', label: 'Needs' },
   { id: 'road', label: 'Roads' },
-  { id: 'resource', label: 'Available' },
+  { id: 'hazard', label: 'Hazards' },
   { id: 'official', label: 'Official' },
 ]
 
@@ -22,9 +23,9 @@ export default function Feed() {
   const [writing, setWriting] = useState(false)
 
   const posts = useMemo(() => {
-    const all = (snap?.observations ?? []).filter((o) => o.summary || o.raw)
+    const all = (snap?.observations ?? []).filter((o) => o.summary || o.text || o.raw)
     return all
-      .filter((o) => tab === 'all' ? true : tab === 'official' ? ['radio', 'ncdot', 'usgs'].includes(o.source_type) : o.category === tab)
+      .filter((o) => tab === 'all' ? true : tab === 'official' ? ['radio', 'ncdot', 'usgs'].includes(o.source_type) : postKind(o) === tab)
       .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
   }, [snap, tab])
 

@@ -40,7 +40,8 @@ const COLORS = [
 /** Component sheet: every reusable piece and its variants, rendered from the same code as the app. */
 export default function Kit() {
   const [on, setOn] = useState(true)
-  const t1 = task(1), t2 = task(2), t3 = task(3), t5 = task(5), t10 = task(10)
+  // Picked from the scenario fixture by role: urgent hero, 'today', 'when able', a ride, and one shown as done.
+  const t1 = task(10), t2 = task(2), t3 = task(8), t5 = task(6), t10 = { ...task(5), status: 'COMPLETED' } as Task
   return (
     <div className="kit">
       <header className="flow-head">
@@ -100,13 +101,13 @@ export default function Kit() {
         <Spec label="tag · done"><Html el={taskTag(t10, { selected: false, mine: false, fits: false })} /></Spec>
         <Spec label="cluster"><Html el={clusterBadge(6, 2)} /></Spec>
         <Spec label="cluster · none urgent"><Html el={clusterBadge(3, 0)} /></Spec>
-        <Spec label="shelter"><Html el={resourcePin(fx.resources![0])} /></Spec>
-        <Spec label="fuel · limited"><Html el={resourcePin(fx.resources![3])} /></Spec>
+        <Spec label="shelter"><Html el={resourcePin(fx.resources![1])} /></Spec>
+        <Spec label="shelter · limited"><Html el={resourcePin(fx.resources![0])} /></Spec>
         <Spec label="gauge · flooding"><Html el={gaugePill(fx.sensors[1], false)} /></Spec>
         <Spec label="gauge · offline"><Html el={gaugePill(fx.sensors[0], true)} /></Spec>
         <Spec label="volunteer · free / busy / off"><span className="kit-inline"><Html el={volunteerDot(false, true)} /><Html el={volunteerDot(true, true)} /><Html el={volunteerDot(false, false)} /></span></Spec>
         <Spec label="you"><Html el={mePuck()} /></Spec>
-        <Spec label="closure / flood / route"><span className="kit-lines"><i className="sw-closure" /><i className="sw-flood" /><i className="sw-route" /></span></Spec>
+        <Spec label="closure / route"><span className="kit-lines"><i className="sw-closure" /><i className="sw-route" /></span></Spec>
       </Group>
 
       <Group title="Task cards">
@@ -121,8 +122,10 @@ export default function Kit() {
 
       <Group title="Feed posts">
         <div className="kit-col">
-          {[0, 2, 4, 5, 11].map((i) => <FeedPost key={i} post={fx.observations[i]} now={now} distance_m={4200} onMap={() => undefined}
-            linkedTask={fx.observations[i].incident_id ? task(fx.observations[i].incident_id!) : null} onTask={() => undefined} />)}
+          {['radio', 'resident', 'social', 'ngo', 'ncdot', 'usgs'].map((src) => fx.observations.find((o) => o.source_type === src)).filter((o) => !!o).map((o) => (
+            <FeedPost key={o!.id} post={o!} now={now} distance_m={4200} onMap={() => undefined}
+              linkedTask={o!.incident_id ? fx.tasks.find((t) => t.incident_id === o!.incident_id) ?? null : null} onTask={() => undefined} />
+          ))}
         </div>
       </Group>
 

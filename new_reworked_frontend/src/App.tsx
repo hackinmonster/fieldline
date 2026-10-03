@@ -22,7 +22,7 @@ const SCREENS: { path: string; name: string; note: string }[] = [
   { path: '/onboard/identity', name: 'Identity', note: 'Driver license or an organization roster. Residents trust a verified name at the door.' },
   { path: '/onboard/skills', name: 'Skills & equipment', note: 'The same fields the matcher filters on. The count of requests you qualify for updates as you tap.' },
   { path: '/onboard/permissions', name: 'Location & alerts', note: 'Location powers matching and evidence checks. Alerts are how offers reach you.' },
-  { path: '/map', name: 'Disaster map', note: 'Home. Requests as field tags, NCDOT closures, flood corridor, gauges, shelters. Sheet lists what fits you.' },
+  { path: '/map', name: 'Disaster map', note: 'Home. Your best match as a field tag, NCDOT closures, gauges, the shelters reports mention. Swipe up for every request.' },
   { path: '/feed', name: 'Situation feed', note: 'Reports from residents, radio, NCDOT, USGS and volunteers. Every post can open its spot on the map.' },
   { path: '/tasks', name: 'Matched tasks', note: 'Your offer, then requests ranked by fit, urgency and distance, with the reason each one does or does not fit.' },
   { path: '/lock', name: 'Notification', note: 'What the offer looks like on a locked phone.' },
@@ -44,7 +44,7 @@ function Caption() {
       {cur && <div className="cap-now"><div className="cap-now-name">{cur.name}</div><p>{cur.note}</p></div>}
       <nav className="cap-nav" aria-label="Jump to screen">
         {SCREENS.map((s) => <Link key={s.path} to={s.path} className={loc.pathname.startsWith(s.path) ? 'is-on' : ''}>{s.name}</Link>)}
-        <Link to="/task/1">Task invitation</Link>
+        <Link to="/task/10">Task invitation</Link>
         <Link to="/done">Completion</Link>
         <span className="cap-sep" />
         <a href="/map?scene=offer">Stage: offer arrives</a>

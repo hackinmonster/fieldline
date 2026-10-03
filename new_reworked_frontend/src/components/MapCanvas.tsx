@@ -11,8 +11,8 @@ const STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 const C = { route: '#1D5FBF', caution: '#E8740C', water: '#5B8FC9', ink: '#14212E', white: '#FFFFFF' }
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export type Layers = { tasks: boolean; resources: boolean; closures: boolean; flood: boolean; volunteers: boolean; gauges: boolean; reports: boolean }
-export const ALL_LAYERS: Layers = { tasks: true, resources: true, closures: true, flood: true, volunteers: true, gauges: true, reports: false }
+export type Layers = { tasks: boolean; resources: boolean; closures: boolean; volunteers: boolean; gauges: boolean; reports: boolean }
+export const ALL_LAYERS: Layers = { tasks: true, resources: true, closures: true, volunteers: true, gauges: true, reports: false }
 
 export type RouteDraw = { line: GeoJSON.LineString; kind: 'active' | 'offer' | 'preview' } | null
 
@@ -88,7 +88,6 @@ const MapCanvas = forwardRef<MapHandle, Props>(function MapCanvas(props, ref) {
 
     m.on('load', () => {
       const empty = fc([])
-      m.addSource('flood', { type: 'geojson', data: empty })
       m.addSource('closures', { type: 'geojson', data: empty })
       m.addSource('route', { type: 'geojson', data: empty })
       m.addSource('reports', { type: 'geojson', data: empty })
@@ -96,15 +95,6 @@ const MapCanvas = forwardRef<MapHandle, Props>(function MapCanvas(props, ref) {
         type: 'geojson', data: empty, cluster: true, clusterRadius: 44, clusterMaxZoom: 13,
         clusterProperties: { urgent: ['+', ['case', ['>=', ['get', 'urgency'], 0.75], 1, 0]] },
       })
-
-      const label = m.getStyle().layers.find((l) => l.type === 'symbol')?.id // keep street names above overlays
-      m.addLayer({ id: 'flood', type: 'line', source: 'flood', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-        'line-color': C.water, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.24, 15, 0.14],
-        'line-width': ['interpolate', ['exponential', 2], ['zoom'], 9, 6, 12, 24, 15, 80] } }, label)
-      m.addLayer({ id: 'flood-label', type: 'symbol', source: 'flood', minzoom: 11, layout: {
-        'symbol-placement': 'line', 'text-field': 'Flooding reported', 'text-size': 12, 'symbol-spacing': 420,
-        'text-font': ['Open Sans Bold'], 'text-letter-spacing': 0.06 },
-        paint: { 'text-color': '#2D5F95', 'text-halo-color': C.white, 'text-halo-width': 1.5 } })
 
       m.addLayer({ id: 'closures-casing', type: 'line', source: 'closures', layout: { 'line-cap': 'round' },
         paint: { 'line-color': C.white, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 14, 10] } })
@@ -144,7 +134,6 @@ const MapCanvas = forwardRef<MapHandle, Props>(function MapCanvas(props, ref) {
     const L = p.layers ?? ALL_LAYERS
     const set = (id: string, d: GeoJSON.FeatureCollection) => (m.getSource(id) as GeoJSONSource | undefined)?.setData(d)
 
-    set('flood', fc(L.flood && s.flood_corridor ? [s.flood_corridor] : []))
     set('closures', fc(L.closures ? s.closures.map((c) => ({ type: 'Feature', geometry: c.geometry, properties: { name: c.name } })) : []))
     set('route', fc(p.route ? [{ type: 'Feature', geometry: p.route.line, properties: { kind: p.route.kind } }] : []))
     set('reports', fc(L.reports ? s.observations.filter((o) => o.point).map((o) =>

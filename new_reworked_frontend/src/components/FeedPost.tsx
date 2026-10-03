@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BadgeCheck, Link2, MapPin } from 'lucide-react'
 import type { Observation, Task } from '../lib/types'
-import { SOURCE, isDone } from '../lib/vocab'
+import { SOURCE, isDone, postKind, type PostKind } from '../lib/vocab'
 import { ago, miles } from '../lib/format'
 
 type Props = {
@@ -13,19 +13,18 @@ type Props = {
   onTask?: () => void
 }
 
-const KIND: Record<string, { label: string; tone: string }> = {
+const KIND: Record<PostKind, { label: string; tone: string }> = {
   need: { label: 'Need', tone: 'danger' },
   road: { label: 'Road', tone: 'caution' },
-  resource: { label: 'Available', tone: 'done' },
-  condition: { label: 'Conditions', tone: 'neutral' },
-  water: { label: 'River level', tone: 'route' },
+  hazard: { label: 'Hazard', tone: 'caution' },
+  info: { label: 'Update', tone: 'neutral' },
 }
 
 /** One report from the ground. The source line says who said it; official feeds are marked. */
 export default function FeedPost({ post: o, now, distance_m, linkedTask, onMap, onTask }: Props) {
   const S = SOURCE[o.source_type] ?? SOURCE.resident
   const [open, setOpen] = useState(false)
-  const kind = KIND[o.category ?? ''] ?? null
+  const kind = KIND[postKind(o)]
   const transcript = o.raw ?? o.text ?? null
   const body = o.summary ?? transcript ?? ''
   return (

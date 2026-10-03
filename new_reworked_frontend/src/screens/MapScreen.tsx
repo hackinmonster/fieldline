@@ -9,7 +9,7 @@ import ReportSheet from '../components/ReportSheet'
 import { ledger, qualifies, rank } from '../lib/match'
 import { meters, type LonLat } from '../lib/geo'
 import { ago, miles, minutes } from '../lib/format'
-import { RESOURCE, TASK_KIND, isDone } from '../lib/vocab'
+import { RESOURCE, TASK_KIND, isDone, postKind } from '../lib/vocab'
 
 
 export default function MapScreen() {
@@ -37,7 +37,7 @@ export default function MapScreen() {
   const more = ranked.filter((r) => r.task.id !== shown?.id).length
 
   // Newest radio/NCDOT closure is the advisory pinned under the search bar.
-  const advisory = useMemo(() => snap?.observations.find((o) => o.category === 'road' && (o.source_type === 'radio' || o.source_type === 'ncdot')), [snap])
+  const advisory = useMemo(() => snap?.observations.find((o) => (o.source_type === 'radio' || o.source_type === 'ncdot') && ['road', 'hazard'].includes(postKind(o))), [snap])
 
   const route: RouteDraw = useMemo(() => {
     if (!shown) return null
@@ -151,7 +151,9 @@ export default function MapScreen() {
                 gaps={me ? ledger(me, shown).filter((l) => !l.ok).map((l) => `Needs ${l.label.toLowerCase()}`) : undefined}
                 onClick={() => nav(`/task/${shown.id}`)} />
             ) : (
-              <p className="island-empty">No open requests nearby right now. You will get an alert when one fits you.</p>
+              <p className="island-empty">{snap.demo && snap.demo.phase !== 'ready'
+                ? `Command is still loading the scenario (${snap.demo.message}). Requests appear here when it finishes.`
+                : 'No open requests nearby right now. You will get an alert when one fits you.'}</p>
             )}
             <button className="sheet-more" onClick={() => nav('/tasks')}>
               <ChevronUp size={18} aria-hidden />
@@ -204,7 +206,6 @@ function LayerPanel({ layers, setLayers, onClose }: { layers: Layers; setLayers:
   const rows: { key: keyof Layers; label: string; swatch: string }[] = [
     { key: 'tasks', label: 'Requests', swatch: 'sw-tag' },
     { key: 'closures', label: 'Road closures (NCDOT, radio)', swatch: 'sw-closure' },
-    { key: 'flood', label: 'Flooding reported', swatch: 'sw-flood' },
     { key: 'resources', label: 'Shelters, water, fuel, medical', swatch: 'sw-res' },
     { key: 'gauges', label: 'River gauges (USGS)', swatch: 'sw-gauge' },
     { key: 'volunteers', label: 'Other volunteers', swatch: 'sw-vol' },

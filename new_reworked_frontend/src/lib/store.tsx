@@ -5,7 +5,8 @@ import { along, lineLength, meters, progressOn, type LonLat } from './geo'
 import type { Assignment, Completion, Snapshot, Task, Volunteer, Vehicle } from './types'
 
 const fixture = fixtureJson as unknown as Snapshot
-const DEMO_VID = 1
+const DEMO_VID = 1 // Jordan Reyes, first volunteer in replay/scenario.yaml
+const HERO = fixture.assignments[0] // the Bee Tree Rd offer the dashboard's dispatch produces
 const OFFER_DELAY_MS = 9000
 export const ARRIVE_RADIUS_M = 200 // backend/app/state/api.py
 
@@ -40,8 +41,15 @@ const SCENE_PROFILE: Profile = {
   location: true, notifications: true, onboarded: true, vid: DEMO_VID,
 }
 
+// `?as=<volunteer id>`: the Command dashboard's "Open <name>'s phone" link signs in as that roster volunteer.
+// `?as=follow`: be whoever command dispatched most recently, so the phone can be opened before the match.
+const FOLLOW = params.get('as') === 'follow'
+const AS = !FOLLOW && params.get('as') ? Number(params.get('as')) : null
+
 function loadProfile(): Profile {
   if (SCENE) return SCENE_PROFILE
+  if (AS != null) return { ...EMPTY_PROFILE, idMethod: 'org', onboarded: true, vid: AS }
+  if (FOLLOW) return { ...EMPTY_PROFILE, idMethod: 'org', onboarded: true, vid: null }
   try { return { ...EMPTY_PROFILE, ...JSON.parse(localStorage.getItem('fieldline.profile') ?? '{}') } } catch { return EMPTY_PROFILE }
 }
 
@@ -82,13 +90,13 @@ export const useStore = () => useContext(StoreCtx)!
 /** Demo snapshot: the fixture with Jordan's offer held back so the "task matched" moment happens on screen. */
 function initialDemo(): Snapshot {
   const s: Snapshot = structuredClone(fixture)
-  s.assignments = s.assignments.filter((a) => a.id !== 1)
-  s.tasks = s.tasks.map((t) => (t.id === 1 ? { ...t, status: 'OPEN' } : t))
+  s.assignments = s.assignments.filter((a) => a.id !== HERO.id)
+  s.tasks = s.tasks.map((t) => (t.id === HERO.task_id ? { ...t, status: 'OPEN' } : t))
   return SCENE && SCENE !== 'browse' ? staged(s, SCENE) : s
 }
 
 function staged(s: Snapshot, scene: Scene): Snapshot {
-  const a = structuredClone(fixture.assignments.find((x) => x.id === 1)!)
+  const a = structuredClone(HERO)
   const coords = a.route!.coordinates as LonLat[]
   const total = lineLength(coords)
   const status = scene === 'offer' ? 'OFFERED' : scene === 'done' ? 'DONE' : 'ACCEPTED'
@@ -97,13 +105,13 @@ function staged(s: Snapshot, scene: Scene): Snapshot {
   return {
     ...s,
     assignments: [...s.assignments, { ...a, status, updated_at: scene === 'done' ? '2024-09-29T14:41:00Z' : a.updated_at }],
-    tasks: s.tasks.map((t) => (t.id === 1 ? { ...t, status: taskStatus } : t)),
+    tasks: s.tasks.map((t) => (t.id === HERO.task_id ? { ...t, status: taskStatus } : t)),
     volunteers: at ? s.volunteers.map((v) => (v.id === DEMO_VID ? { ...v, lon: at[0], lat: at[1] } : v)) : s.volunteers,
   }
 }
 
 function stagedCompletion(): Completion {
-  return { task: fixture.tasks.find((x) => x.id === 1)!, at: new Date('2024-09-29T14:41:00Z'), distance_m: 25, note: '' }
+  return { task: fixture.tasks.find((x) => x.id === HERO.task_id)!, at: new Date('2024-09-29T14:41:00Z'), distance_m: 25, note: '' }
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -114,7 +122,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [offer, setOffer] = useState<Assignment | null>(null)
   const [lastCompletion, setLastCompletion] = useState<Completion | null>(SCENE === 'done' ? stagedCompletion : null)
   const [driving, setDriving] = useState(false)
-  const seenOffers = useRef(new Set<number>(SCENE && SCENE !== 'offer' ? [1] : []))
+  const seenOffers = useRef(new Set<number>(SCENE && SCENE !== 'offer' ? [HERO.id] : []))
   const refreshTimer = useRef<number | undefined>(undefined)
 
   const setProfile = useCallback((p: Partial<Profile>) => {
@@ -126,14 +134,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // ---- Connect: live backend if it answers, otherwise the demo snapshot ----
-  const refresh = useCallback(() => get<Snapshot>('/state').then(setSnap).catch(() => undefined), [])
+  // The backend has no shelters/resources endpoint; the places the scenario's reports name are added from the fixture.
+  const withPlaces = (s: Snapshot): Snapshot => ({ ...s, resources: s.resources ?? fixture.resources })
+  const refresh = useCallback(() => get<Snapshot>('/state').then((s) => setSnap(withPlaces(s))).catch(() => undefined), [])
 
   useEffect(() => {
     let stop: (() => void) | undefined
     if (FORCE_DEMO) { setSnap(initialDemo()); setMode('demo'); return }
     get<Snapshot>('/state', 2500)
       .then((s) => {
-        setSnap(s)
+        setSnap(withPlaces(s))
         setMode('live')
         stop = openSocket((msg) => {
           if (msg.event === 'volunteer.location') {
@@ -152,6 +162,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => stop?.()
   }, [refresh])
 
+  const followVid = useMemo(() => {
+    if (!FOLLOW || !snap) return null
+    const a = [...snap.assignments].sort((x, y) => y.id - x.id)
+    return (a.find((x) => x.status === 'OFFERED' || x.status === 'ACCEPTED') ?? a[0])?.volunteer_id ?? null
+  }, [snap])
+
+  // Fill in the roster volunteer's name and capabilities once the snapshot arrives.
+  useEffect(() => {
+    const id = AS ?? (FOLLOW ? followVid : null)
+    if (id == null || mode !== 'live' || !snap) return
+    const v = snap.volunteers.find((x) => x.id === id)
+    if (v && profile.name !== v.name) setProfile({ name: v.name, skills: v.skills, equipment: v.equipment, vehicle: v.vehicle, vid: v.id })
+  }, [mode, snap, profile.name, setProfile, followVid])
+
   // ---- Clock: server sim time, ticking locally ----
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
@@ -166,7 +190,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snap?.clock.sim_now, snap?.clock.speed])
 
-  const vid = mode === 'demo' ? DEMO_VID : profile.vid
+  const vid = mode === 'demo' ? DEMO_VID : FOLLOW ? followVid : profile.vid
 
   // Demo: the onboarding profile becomes Jordan's capabilities, so the story still matches.
   const me = useMemo<Volunteer | null>(() => {
@@ -222,13 +246,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- Demo: Jordan's offer arrives a few seconds after onboarding ----
   useEffect(() => {
     if (mode !== 'demo' || !profile.onboarded || SCENE) return
-    if (snap?.assignments.some((a) => a.id === 1)) return
+    if (snap?.assignments.some((a) => a.id === HERO.id)) return
     const id = window.setTimeout(() => {
-      const a = structuredClone(fixture.assignments.find((x) => x.id === 1)!)
+      const a = structuredClone(HERO)
       setSnap((s) => s && {
         ...s,
         assignments: [...s.assignments, { ...a, created_at: new Date().toISOString() }],
-        tasks: s.tasks.map((t) => (t.id === 1 ? { ...t, status: 'ASSIGNED' } : t)),
+        tasks: s.tasks.map((t) => (t.id === HERO.task_id ? { ...t, status: 'ASSIGNED' } : t)),
       })
     }, OFFER_DELAY_MS)
     return () => window.clearTimeout(id)

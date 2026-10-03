@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Building2, HandHelping, Home, MessageCircle, MessageSquareText, Radio, TrafficCone, Waves, type LucideIcon } from 'lucide-react'
 
 export const API = '/api'
 
@@ -125,15 +126,23 @@ export function useSimClock(clock?: State['clock']) {
   return now
 }
 
-export const SOURCES: Record<string, { label: string; icon: string; color: string }> = {
-  social: { label: 'Social media', icon: '📱', color: '#a78bfa' },
-  ngo: { label: 'NGO request', icon: '🏢', color: '#fbbf24' },
-  shelter: { label: 'Shelter', icon: '🏠', color: '#fbbf24' },
-  resident: { label: 'SMS / hotline', icon: '💬', color: '#fb923c' },
-  radio: { label: 'Public-safety radio', icon: '📻', color: '#f472b6' },
-  volunteer: { label: 'Volunteer field report', icon: '🙋', color: '#34d399' },
-  ncdot: { label: 'NCDOT road feed', icon: '🚧', color: '#ef4444' },
-  usgs: { label: 'USGS river gauge', icon: '🌊', color: '#60a5fa' },
+/** Report sources. Same labels as the Fieldline feed; colors are a muted categorical set, always shown with the label. */
+export const SOURCES: Record<string, { label: string; icon: LucideIcon; color: string }> = {
+  social: { label: 'Social media', icon: MessageCircle, color: '#4F6D9A' },
+  ngo: { label: 'NGO request', icon: Building2, color: '#9A6A12' },
+  shelter: { label: 'Shelter', icon: Home, color: '#9A6A12' },
+  resident: { label: 'SMS / hotline', icon: MessageSquareText, color: '#2F7E78' },
+  radio: { label: 'Public-safety radio', icon: Radio, color: '#8A4B6F' },
+  volunteer: { label: 'Volunteer field report', icon: HandHelping, color: '#4E7A3A' },
+  ncdot: { label: 'NCDOT road feed', icon: TrafficCone, color: '#E8740C' },
+  usgs: { label: 'USGS river gauge', icon: Waves, color: '#5B8FC9' },
+}
+
+/** Fieldline (the volunteer phone app). Set VITE_FIELDLINE_URL when it is not on this host at :5174.
+ *  With an id it signs in as that volunteer; without one it follows whoever command dispatched most recently. */
+export function fieldlineUrl(volunteerId?: number | null) {
+  const base = import.meta.env.VITE_FIELDLINE_URL ?? `${location.protocol}//${location.hostname}:5174`
+  return `${base}/map?as=${volunteerId ?? 'follow'}`
 }
 
 export function vehicleDesc(v: any) {

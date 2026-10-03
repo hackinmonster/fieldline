@@ -35,11 +35,19 @@ Demo scenes jump to one point in the story: `?scene=browse|offer|active|arrived|
 
 ## Fixture
 
-`python3 scripts/build_fixture.py` rebuilds it. NCDOT closures and USGS gauge readings come from `../backend/data`
-at Sep 29 2024 10:12 AM EDT. Routes are fetched from the public OSRM server. Tasks, posts, volunteers and resource points are scripted to match `../replay/scenario.yaml`.
+`python3 scripts/build_fixture.py` rebuilds it from `../replay/scenario.yaml`, parked at the scenario's `live_start`,
+so the offline demo shows what Command shows after *Load scenario*: the same 16 volunteers and the same 15 reports,
+11 incidents and 10 tasks. NCDOT closures and USGS readings come from `../backend/data`, and routes come from the public OSRM server.
+The wording of each incident and task is hand-written; with the backend running, the LLM pipeline writes it.
+
+## With the Command dashboard
+
+- Command (`../frontend`, `/command`) dispatches. The offer lands here.
+- *Open <name>'s phone* opens `/map?as=<id>`. The footer's *Volunteer app* opens `/map?as=follow`, which becomes whoever was dispatched most recently.
+- Source names, task types and status colors are the same in both apps. `../frontend/src/tokens.css` is a copy of `src/styles/tokens.css`.
 
 ## Known gaps
 
 - There's no SMS service, so any 6-digit code is accepted.
 - The backend has no endpoint for editing capabilities. Edits on the profile page are saved on the device only.
-- In live mode, shelters/resources and the flood corridor come from the fixture, because the backend doesn't serve them.
+- Shelters and distribution points on the map are the places the scenario's reports name. The backend doesn't serve them, so they come from the fixture even in live mode.

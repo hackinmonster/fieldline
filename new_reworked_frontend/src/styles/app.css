@@ -251,7 +251,6 @@
 .swatch { width: 24px; height: 16px; flex: none; border-radius: 3px; }
 .sw-tag { background: var(--caution); border-radius: 3px 3px 3px 0; }
 .sw-closure, .kit-lines .sw-closure { background: repeating-linear-gradient(90deg, var(--caution) 0 7px, #fff 7px 10px); height: 5px; }
-.sw-flood, .kit-lines .sw-flood { background: rgba(91, 143, 201, 0.35); }
 .sw-route, .kit-lines .sw-route { background: var(--route); height: 5px; }
 .sw-res { background: #fff; box-shadow: inset 0 0 0 2px var(--ink); }
 .sw-gauge { background: var(--water); border-radius: 8px; }

@@ -20,7 +20,7 @@ export default function Lock() {
     <div className="lock">
       <div className="lock-bg" aria-hidden>
         {snap && <MapCanvas snap={snap} me={me} interactive={false} initial={{ center: me ? [me.lon, me.lat] : [-82.45, 35.61], zoom: 11.2 }}
-          layers={{ tasks: false, closures: true, flood: true, resources: false, gauges: false, volunteers: false, reports: false }} />}
+          layers={{ tasks: false, closures: true, resources: false, gauges: false, volunteers: false, reports: false }} />}
       </div>
       <div className="lock-top">
         <div className="lock-date">{date}</div>

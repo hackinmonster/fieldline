@@ -33,7 +33,7 @@ export type Volunteer = {
 
 export type Incident = {
   id: number; status: string; type: string; summary: string; priority: number; confidence: number
-  lon: number; lat: number; n_obs: number
+  lon: number; lat: number; n_obs: number; sources?: string[] | null; location_text?: string | null
 }
 
 export type SourceType = 'resident' | 'social' | 'shelter' | 'ngo' | 'volunteer' | 'radio' | 'ncdot' | 'usgs'
@@ -60,7 +60,8 @@ export type Snapshot = {
   clock: { sim_now: string; speed: number; simulated: boolean }
   incidents: Incident[]; tasks: Task[]; assignments: Assignment[]; volunteers: Volunteer[]
   observations: Observation[]; closures: Closure[]; sensors: Sensor[]; activity: Activity[]
-  resources?: Resource[]; flood_corridor?: GeoJSON.Feature<GeoJSON.LineString>
+  resources?: Resource[]
+  demo?: { phase: 'idle' | 'loading' | 'ingesting' | 'ready' | 'error'; message: string }
 }
 
 /** What the volunteer sees after "I did it": the backend's location check passed at this distance. */
