@@ -97,7 +97,7 @@ export default function MapScreen() {
             ))}
           </ul>
         )}
-        {query.trim().length >= 2 && results.length === 0 && <div className="search-results glass empty-line">Nothing matches “{query}”. Try a road name like “Bee Tree”.</div>}
+        {query.trim().length >= 2 && results.length === 0 && <div className="search-results glass empty-line">Nothing matches “{query}”. Try a road or place name.</div>}
         {advisory && (
           <button className="advisory" onClick={() => advisory.point && mapRef.current?.flyTo(advisory.point.coordinates as LonLat, 14.5)}>
             <TrafficCone size={16} aria-hidden />

@@ -94,12 +94,12 @@ export default function Command() {
             <img src="/mark.svg" alt="" width={32} height={32} />
             <div>
               <h1>Fieldline Command</h1>
-              <div className="sub">Helene response · Buncombe County, NC</div>
+              <div className="sub">Disaster response</div>
             </div>
           </div>
           <div className="clock">
             <div className="clock-time num">{now ? fmtTime(now) : '—'}</div>
-            <div className="sub">{speed > 1 ? <span className="ff"><FastForward size={13} aria-hidden /> {speed}× while driving</span> : state?.clock.simulated ? 'Replay clock' : 'Live'}</div>
+            <div className="sub">{speed > 1 ? <span className="ff"><FastForward size={13} aria-hidden /> {speed}× while driving</span> : state?.clock.simulated ? 'Demo replay · Hurricane Helene' : 'Live'}</div>
           </div>
         </header>
         <nav className="tabs" role="tablist">
@@ -142,28 +142,43 @@ function LayerPanel({ state, layers, setLayers }: { state: State | null; layers:
     return { incidents: state.incidents.length, volunteers: state.volunteers.length, roads: new Set(state.closures.map((c) => c.name)).size,
       gauges: state.sensors.length, weather: '', vulnerability: '', risk: '', landslides: 640, debris: '' }[id as string] ?? ''
   }
-  let group = ''
+  const groups = [...new Set(LAYERS.map((l) => l.group))]
   return (
     <div className="layers">
       <button className="layers-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         Data layers {open ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
       </button>
-      {open && LAYERS.map((l) => {
-        const head = l.group !== group ? (group = l.group) : null
+      {open && groups.map((g) => {
+        const members = LAYERS.filter((l) => l.group === g)
+        const on = members.filter((l) => layers[l.id]).length
         return (
-          <div key={l.id}>
-            {head && <div className="layers-group">{head}</div>}
-            <label className="layer-row">
-              <input type="checkbox" checked={layers[l.id]} onChange={(e) => setLayers((x) => ({ ...x, [l.id]: e.target.checked }))} />
-              <i className={l.kind} style={{ background: l.color }} />
-              <span className="grow">{l.label}</span>
-              <span className="muted num">{count(l.id)}</span>
+          <div key={g} role="group" aria-label={g}>
+            <label className="layers-group">
+              <GroupToggle all={on === members.length} some={on > 0 && on < members.length}
+                onChange={(v) => setLayers((x) => ({ ...x, ...Object.fromEntries(members.map((l) => [l.id, v])) }))} label={`Show all ${g}`} />
+              <span className="grow">{g}</span>
+              <span className="layers-group-count num">{on}/{members.length}</span>
             </label>
+            {members.map((l) => (
+              <label key={l.id} className="layer-row">
+                <input type="checkbox" checked={layers[l.id]} onChange={(e) => setLayers((x) => ({ ...x, [l.id]: e.target.checked }))} />
+                <i className={l.kind} style={{ background: l.color }} />
+                <span className="grow">{l.label}</span>
+                <span className="muted num">{count(l.id)}</span>
+              </label>
+            ))}
           </div>
         )
       })}
     </div>
   )
+}
+
+/** Select-all checkbox for a layer group: checked when every layer is on, mixed (indeterminate) when some are. */
+function GroupToggle({ all, some, onChange, label }: { all: boolean; some: boolean; onChange: (v: boolean) => void; label: string }) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (ref.current) ref.current.indeterminate = some }, [some])
+  return <input ref={ref} type="checkbox" aria-label={label} checked={all} onChange={() => onChange(!all)} />
 }
 
 // ---------------- Overview: ingestion → synthesized incidents ----------------
@@ -189,7 +204,7 @@ function Overview({ state, layers, setLayers, onSelect }: { state: State | null;
             )
           })}
           {!Object.keys(d.by_source).length && (
-            <p className="muted empty-note">No data yet. Press <b>Load scenario</b>. It streams real NCDOT closures and USGS gauge readings from Helene, plus community reports, through the live pipeline.</p>
+            <p className="muted empty-note">No data yet. Press <b>Load scenario</b> to replay the demo: Hurricane Helene in Buncombe County, NC (Sep 2024). It streams the real NCDOT closures and USGS gauge readings from that storm, plus community reports, through the live pipeline.</p>
           )}
         </div>
         {(d.phase === 'ingesting' || d.phase === 'loading') && <div className="muted ingest-msg"><Loader2 size={14} className="spin" aria-hidden /> {d.message}</div>}

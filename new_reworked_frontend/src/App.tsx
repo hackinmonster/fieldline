@@ -39,7 +39,8 @@ function Caption() {
   return (
     <>
       <div className="cap-brand"><img src="/mark.svg" alt="" width={28} height={28} /> Fieldline</div>
-      <p className="cap-lede">Volunteer app for the Helene coordination backend. Buncombe County, NC, Sep 29 2024.</p>
+      <p className="cap-lede">Volunteer app for disaster response.</p>
+      <p className="cap-scenario">Demo scenario: Hurricane Helene, Buncombe County, NC · Sep 29, 2024</p>
       <p className="cap-mode">{mode === 'live' ? 'Connected to the backend.' : mode === 'demo' ? 'Backend not reachable: running on the bundled demo snapshot (real NCDOT closures and USGS gauges, scripted requests).' : 'Connecting…'}</p>
       {cur && <div className="cap-now"><div className="cap-now-name">{cur.name}</div><p>{cur.note}</p></div>}
       <nav className="cap-nav" aria-label="Jump to screen">

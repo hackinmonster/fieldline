@@ -291,7 +291,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- Actions ----
   const register = useCallback(async () => {
     if (mode !== 'live') { setProfile({ onboarded: true, vid: DEMO_VID }); return }
-    let lon = -82.4, lat = 35.6 // Swannanoa, if location is off or denied
+    let lon = -82.4, lat = 35.6 // center of the demo response area, if location is off or denied
     if (profile.location && 'geolocation' in navigator) {
       await new Promise<void>((res) => navigator.geolocation.getCurrentPosition(
         (p) => { lon = p.coords.longitude; lat = p.coords.latitude; res() }, () => res(), { timeout: 6000 }))

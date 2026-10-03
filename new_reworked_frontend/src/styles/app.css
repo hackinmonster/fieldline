@@ -6,6 +6,7 @@
 .stage-caption { width: 300px; align-self: center; display: flex; flex-direction: column; gap: var(--s-4); }
 .cap-brand { display: flex; align-items: center; gap: var(--s-2); font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.02em; }
 .cap-lede { color: var(--ink-2); font-size: var(--t-14); }
+.cap-scenario { font-size: 13px; font-weight: 700; color: var(--caution-ink); background: var(--caution-wash); border-radius: var(--r-tag); padding: 4px 8px; align-self: flex-start; }
 .cap-mode { font-size: var(--t-14); color: var(--ink-3); border-left: 3px solid var(--line-strong); padding-left: var(--s-3); }
 .cap-now { background: var(--surface); border-radius: var(--r-card); padding: var(--s-4); box-shadow: var(--lift-1); }
 .cap-now-name { font-family: var(--font-display); font-weight: 700; font-size: var(--t-20); margin-bottom: var(--s-1); }

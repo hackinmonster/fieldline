@@ -43,7 +43,7 @@ export default function Permissions() {
             <h2>Location</h2>
             <p>Matching starts from where you are, and when you finish a task we compare your position with the address. Shared only while you are marked available.</p>
             <PermButton state={loc} onAsk={askLocation} label="Allow location" />
-            {loc === 'denied' && <p className="field-error">Location is blocked. You can still help: you will be placed in Swannanoa and evidence checks will ask for a photo with the house number.</p>}
+            {loc === 'denied' && <p className="field-error">Location is blocked. You can still help: you will be placed at the center of the response area and evidence checks will ask for a photo with the house number.</p>}
           </div>
         </div>
 

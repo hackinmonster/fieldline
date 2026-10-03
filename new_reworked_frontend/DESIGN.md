@@ -1,18 +1,18 @@
 # Fieldline: design direction
 
-Volunteer app for the Helene coordination backend. Replaces `../frontend/src/pages/Volunteer.tsx` with a map-first phone UI.
+Volunteer app for the disaster-response coordination backend. The demo scenario is Hurricane Helene in Buncombe County, NC; nothing in the product is specific to it. Replaces `../frontend/src/pages/Volunteer.tsx` with a map-first phone UI.
 `../frontend` (`/command` dashboard) is untouched.
 
 ## User, task, context
 
-- **Who:** a Buncombe County resident volunteering with what they have: a pickup, a chainsaw, first-aid training, Spanish.
+- **Who:** a resident volunteering in their own area after a disaster, with what they have: a pickup, a chainsaw, first-aid training, Spanish.
 - **Task:** find a nearby need they can actually meet, get there around closed roads, and say it is done. Their location is the only check.
-- **Context:** two days after the storm. Outdoors, glare, one hand, patchy cell service, low battery, tired.
+- **Context:** days after a hurricane, flood or wildfire (the demo: two days after Helene). Outdoors, glare, one hand, patchy cell service, low battery, tired.
   So: large type, high contrast, few choices per screen, status always visible, nothing that depends on hover or color alone.
 
 ## Aesthetic
 
-Reference: **North Carolina road signage and USGS topographic quads**, plus the paper field tag a crew ties to a door.
+Reference: **highway signage and USGS topographic quads**, plus the paper field tag a crew ties to a door.
 Condensed sign-face lettering for numbers and labels, route-shield blue for navigation, work-zone orange for caution,
 square-shouldered tags instead of soft bubbles. No gradients, no glow, no decorative backgrounds. The map is the backdrop.
 
