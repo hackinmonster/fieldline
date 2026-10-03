@@ -1,5 +1,4 @@
-"""Thin OpenAI wrapper: structured output (Pydantic schema) + optional image."""
-import base64
+"""Thin OpenAI wrapper: structured output (Pydantic schema)."""
 import logging
 from typing import TypeVar
 
@@ -23,12 +22,8 @@ def client() -> AsyncOpenAI:
     return _client
 
 
-async def structured(system: str, prompt: str, schema: type[T], *,
-                     image: bytes | None = None, image_mime: str = "image/jpeg") -> T:
+async def structured(system: str, prompt: str, schema: type[T]) -> T:
     content: list[dict] = [{"type": "input_text", "text": prompt}]
-    if image is not None:
-        b64 = base64.b64encode(image).decode()
-        content.append({"type": "input_image", "image_url": f"data:{image_mime};base64,{b64}"})
     resp = await client().responses.parse(
         model=LLM_MODEL,
         instructions=system,

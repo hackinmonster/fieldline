@@ -8,7 +8,9 @@ from dataclasses import dataclass
 from .. import db
 from .schemas import TaskProposal, TaskType
 
-DIRECT_NEED_SOURCES = {"resident", "shelter", "ngo", "volunteer"}
+# A first-person (or family member's) social media post asking for help is a direct need report;
+# the LLM's calibrated confidence still distinguishes it from rumor / reposts.
+DIRECT_NEED_SOURCES = {"resident", "shelter", "ngo", "volunteer", "social"}
 ASSISTANCE_TYPES = {TaskType.DELIVER_SUPPLIES, TaskType.WELLNESS_CHECK, TaskType.TRANSPORT}
 ACTIVE_STATUSES = ("OPEN", "ASSIGNED", "EN_ROUTE", "BLOCKED")
 # Above this incident confidence a volunteer verification adds little — don't send people to look.
@@ -39,7 +41,7 @@ async def validate(incident: dict, p: TaskProposal) -> Verdict:
         direct_needs = [o for o in obs if o["category"] == "NEED" and o["source_type"] in DIRECT_NEED_SOURCES]
         if not direct_needs:
             notes.append(f"{p.task_type.value} requires a direct report of a human need "
-                         f"(resident/shelter/NGO/volunteer); incident has none")
+                         f"(resident/social/shelter/NGO/volunteer); incident has none")
             return Verdict(False, notes)
 
     if p.task_type == TaskType.VERIFY_CONDITION:

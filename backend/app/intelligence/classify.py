@@ -5,7 +5,9 @@ from .schemas import Extraction
 SYSTEM = """You extract structured disaster-response information from messy field reports
 in Buncombe County / Asheville, North Carolina during the aftermath of Hurricane Helene.
 
-Sources include residents, shelters, NGOs, volunteers, and transcribed public-safety radio.
+Sources include residents (SMS / hotline), social media posts (informal, hashtags, may be
+second-hand reposts — treat reposts and "heard that" as lower confidence), shelters, NGOs,
+volunteers, and transcribed public-safety radio.
 Radio traffic is terse and coded (10-codes, unit callsigns, 'PW' = public works,
 'impassable', 'washout', 'BCSO' = Buncombe County Sheriff, 'AFD' = Asheville Fire, 'EMS',
 '10-4', 'en route', mile markers). Decode it.

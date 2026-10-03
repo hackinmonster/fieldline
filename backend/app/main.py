@@ -4,12 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from . import db
 from .bus import hub
-from .config import UPLOAD_DIR
 from .coordination import routing
+from .demo import runner as demo_runner
+from .demo.api import router as demo_router
 from .ingestion.api import router as ingest_router
 from .intelligence import pipeline
 from .state.api import router as state_router
@@ -22,8 +22,11 @@ async def lifespan(app: FastAPI):
     await db.open_pool()
     await asyncio.to_thread(routing.load_graph)
     await routing.sync_closures_from_db()
+    await demo_runner.restore()
     worker = asyncio.create_task(pipeline.worker())
+    mover = asyncio.create_task(demo_runner.movement.run())  # DEMO-STUB: simulated volunteer GPS
     yield
+    mover.cancel()
     worker.cancel()
     await db.close_pool()
 
@@ -32,8 +35,7 @@ app = FastAPI(title="Helene Volunteer Coordination", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(ingest_router)
 app.include_router(state_router)
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.include_router(demo_router)
 
 
 @app.get("/health")

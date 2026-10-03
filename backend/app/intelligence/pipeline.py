@@ -17,7 +17,7 @@ from . import classify, incident_linker, priority, task_proposer, task_validator
 
 log = logging.getLogger("pipeline")
 
-FREE_TEXT_SOURCES = {"resident", "shelter", "ngo", "volunteer", "radio"}
+FREE_TEXT_SOURCES = {"resident", "shelter", "ngo", "volunteer", "radio", "social"}
 # Authoritative structured feeds update the road network / sensor layers directly. They attach to
 # incidents as corroboration but never open incidents or spawn tasks on their own.
 AUTHORITATIVE_FEEDS = {"ncdot", "usgs", "nhc"}
@@ -175,7 +175,8 @@ async def consider_tasks(incident: dict):
                                    f"(priority {p}). Why: {proposal.reasoning}",
                    {"task_id": task["id"], "incident_id": incident["id"], "priority_factors": factors,
                     "requirements": reqs, "validator": verdict.notes})
-    await matcher.match(task["id"])
+    if matcher.auto_dispatch:
+        await matcher.match(task["id"])
 
 
 async def _task_payload(task_id: int) -> dict:

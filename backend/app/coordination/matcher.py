@@ -4,6 +4,10 @@
 2. Hard capability filters (vehicle, clearance, capacity, seats, skills, equipment,
    verify-safety) — reasons recorded so the dashboard can show who was skipped and why.
 3. Road-network ETA (closure-aware) for the remaining candidates; lowest ETA wins.
+
+Dispatch mode: with `auto_dispatch` on, new tasks are matched the moment they are created.
+With it off (operator-approved dispatch — what the demo uses), tasks wait OPEN until command
+presses Dispatch; the matching itself is identical.
 """
 from .. import db
 from ..bus import activity, publish
@@ -13,6 +17,7 @@ from ..state import tasks as T
 from . import routing
 
 WALK_MPS = 1.3
+auto_dispatch = True
 
 
 def capability_gaps(vol: dict, task: dict) -> list[str]:
@@ -57,6 +62,8 @@ async def rank(task: dict, exclude: set[int] | None = None) -> tuple[list[dict],
             continue
         gaps = capability_gaps(v, task)
         (skipped.append({**v, "reasons": gaps}) if gaps else ok.append(v))
+    for v in ok[MATCH_CANDIDATES:]:
+        skipped.append({**v, "reasons": [f"not among the {MATCH_CANDIDATES} nearest capable volunteers"], "role": "farther"})
     ok = ok[:MATCH_CANDIDATES]
     dst = (task["lon"], task["lat"])
     for v in ok:
@@ -90,11 +97,13 @@ async def match(task_id: int, exclude: set[int] | None = None, context: str = ""
     if task is None or task["status"] not in ("OPEN", "BLOCKED", "ASSIGNED", "EN_ROUTE"):
         return None
     reachable, skipped = await rank(task, exclude)
+    candidates = _candidates_payload(reachable, skipped)
     skipped_txt = "; ".join(f"{s['name']} ({s['dist_m']:.0f} m): {', '.join(s['reasons'])}" for s in skipped[:5])
     if not reachable:
         if task["status"] == "BLOCKED":
             return None  # already escalated; don't re-alert on every retry
-        await escalate(task, f"no capable volunteer can reach the task{context}. Skipped: {skipped_txt or 'none available'}")
+        await escalate(task, f"no capable volunteer can reach the task{context}. Skipped: {skipped_txt or 'none available'}",
+                       candidates)
         return None
     best = reachable[0]
     others = ", ".join(f"{v['name']} {v['route']['eta_s']/60:.0f} min" for v in reachable[1:4])
@@ -105,22 +114,37 @@ async def match(task_id: int, exclude: set[int] | None = None, context: str = ""
                             f"Skipped: {skipped_txt or 'none'}",
                    {"task_id": task_id, "volunteer_id": best["id"], "assignment_id": a["id"],
                     "skipped": [{"id": s["id"], "name": s["name"], "reasons": s["reasons"]} for s in skipped],
-                    "alternatives": [{"id": v["id"], "name": v["name"], "eta_s": v["route"]["eta_s"]} for v in reachable[1:]]})
+                    "alternatives": [{"id": v["id"], "name": v["name"], "eta_s": v["route"]["eta_s"]} for v in reachable[1:]],
+                    "candidates": candidates, "task_lon": task["lon"], "task_lat": task["lat"]})
     return a
 
 
-async def escalate(task: dict, why: str):
+def _candidates_payload(reachable: list[dict], skipped: list[dict]) -> list[dict]:
+    """Everyone the matcher looked at, with the outcome for each — drives the dashboard's candidate view."""
+    def base(v):
+        return {**{k: v.get(k) for k in ("id", "name", "lon", "lat", "skills", "equipment", "vehicle")},
+                "dist_m": float(v["dist_m"])}
+    out = [{**base(v), "role": "chosen" if i == 0 else "alternative", "eta_s": v["route"]["eta_s"],
+            "mode": v["route"].get("mode", "drive"), "rank": i + 1} for i, v in enumerate(reachable)]
+    out += [{**base(v), "role": v.get("role") or ("unreachable" if v.get("unreachable") else "skipped"),
+             "reasons": v["reasons"]} for v in skipped]
+    return out
+
+
+async def escalate(task: dict, why: str, candidates: list[dict] | None = None):
     await T.set_status(task["id"], "BLOCKED", why)
     if task["incident_id"]:
         await db.execute("UPDATE incidents SET priority = priority + 25, updated_at=%s WHERE id=%s",
                          sim_now(), task["incident_id"])
         await publish("incident.updated", {"id": task["incident_id"]})
     await activity("escalation", f"⚠ Task #{task['id']} BLOCKED — {why}. Escalated to command for human decision.",
-                   {"task_id": task["id"], "incident_id": task["incident_id"]})
+                   {"task_id": task["id"], "incident_id": task["incident_id"], "candidates": candidates or []})
 
 
 async def retry_unassigned(reason: str):
-    """Conditions changed (road reopened, volunteer freed up) — retry OPEN/BLOCKED tasks."""
-    rows = await db.fetch("SELECT id FROM tasks WHERE status IN ('OPEN','BLOCKED') ORDER BY priority DESC NULLS LAST")
+    """Conditions changed (road reopened, volunteer freed up) — retry OPEN/BLOCKED tasks.
+    In operator-approved mode only tasks command already dispatched (now BLOCKED) are retried."""
+    statuses = ["OPEN", "BLOCKED"] if auto_dispatch else ["BLOCKED"]
+    rows = await db.fetch("SELECT id FROM tasks WHERE status = ANY(%s) ORDER BY priority DESC NULLS LAST", statuses)
     for r in rows:
         await match(r["id"], context=f" (retry: {reason})")

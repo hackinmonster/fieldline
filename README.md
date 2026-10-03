@@ -1,6 +1,6 @@
 # Helene Volunteer Coordination
 
-A real-time coordination system that turns heterogeneous disaster information into **verified volunteer action**, demonstrated on the immediate aftermath of Hurricane Helene in Asheville / Buncombe County, NC (Sep 27–30, 2024).
+A real-time coordination system that turns heterogeneous disaster information into **coordinated volunteer action**, demonstrated on the immediate aftermath of Hurricane Helene in Asheville / Buncombe County, NC (Sep 27–30, 2024).
 
 ```
 historical Helene conditions + incoming observations
@@ -8,7 +8,7 @@ historical Helene conditions + incoming observations
  → AI understanding (OpenAI) → incident / task (code-guarded)
  → geospatial volunteer matching (PostGIS KNN + closure-aware road routing)
  → adaptation to changing conditions (reroute / reassign / escalate)
- → human action → evidence verification (GPS + vision) → updated operational state
+ → human action (accept → GPS on scene → mark complete) → updated operational state
 ```
 
 ## Architecture
@@ -18,11 +18,11 @@ One FastAPI process with four module boundaries, an in-process event bus, and a 
 | Area | Module | What it does |
 |---|---|---|
 | Ingestion | `backend/app/ingestion/` | Adapters for resident/shelter/NGO reports, public-safety radio transcripts, NCDOT TIMS events, USGS gauge readings, volunteer field reports → one `observations` hypertable |
-| Intelligence | `backend/app/intelligence/` | LLM extraction, AI incident linking, AI task proposals + **code validator**, priority formula, evidence verification |
+| Intelligence | `backend/app/intelligence/` | LLM extraction, AI incident linking, AI task proposals + **code validator**, priority formula |
 | Coordination | `backend/app/coordination/` | Matching, closure-aware routing on the OSM drive graph, adaptation ladder |
-| Core State/API | `backend/app/state/` | Volunteers, assignments, evidence, snapshot reads, task state machine |
+| Core State/API | `backend/app/state/` | Volunteers, assignments, snapshot reads, task state machine |
 
-Clients (`frontend/`): `/command` (live geospatial dashboard + decision feed) and `/volunteer` (mobile volunteer app).
+Clients (`frontend/`): `/command` (layered geospatial dashboard: ingestion → synthesis → dispatch story, plus system log) and `/volunteer` (mobile volunteer app in a phone frame: lock-screen push → mission → accept; its map shows only you, the destination and the route).
 
 ## REAL vs DEMO-STUB
 
@@ -35,16 +35,20 @@ We are explicit about what generalizes and what exists only for the demo.
 | Observation → incident linking | **REAL (AI-decided)** | SQL only narrows candidates (5 km / 48 h recall knob); the LLM decides ATTACH vs NEW with reasoning, stored in `incident_links` |
 | Incident → task | **REAL (AI-proposed, code-enforced)** | `task_validator.py`: assistance tasks need a direct human-need report; hazards only yield VERIFY_CONDITION when uncertain; no duplicates |
 | Priority | **REAL** | Transparent formula: AI urgency × (vulnerability flags + census-tract 65+/no-vehicle share) |
-| Matching | **REAL** | PostGIS KNN → capability filters (with recorded skip reasons) → network ETA |
+| Matching | **REAL** | PostGIS KNN → capability filters (with recorded skip reasons) → network ETA. Every volunteer considered is recorded with its outcome, which drives the dashboard's candidate view |
+| Operator-approved dispatch | **REAL** | `matcher.auto_dispatch=False` (set by the demo): tasks wait OPEN until command presses *Find the best volunteer* (`POST /incidents/{id}/dispatch`); matching is identical to auto mode |
+| Arrival detection | **REAL** | GPS geofence (200 m of the task) on every location update |
 | Road closures | **REAL** | Any closure (NCDOT line, radio point) snaps to OSM segments and is removed from routing |
 | Adaptation ladder | **REAL** | Every closure is checked against every active route; REROUTE vs REASSIGN is an AI judgment over concrete ETAs (deterministic fallback); ESCALATE when unreachable; BLOCKED tasks retried on reopen / new availability |
-| Evidence verification | **REAL** | PostGIS GPS distance check + OpenAI vision |
+| Completion | **By design: trust the volunteer** | Volunteers are unpaid neighbors, so no photo proof. GPS already shows them on scene; they tap *Mark complete* (optional note to command) → task COMPLETED → incident RESOLVED |
 | River gauge observations | **REAL** | Readings stream into a hypertable; crossing the official NWS flood stage emits an observation |
-| Replay clock / historical streaming | **DEMO-STUB (by design)** | `replay/replayer.py` drives `POST /sim/clock` and the public ingestion endpoints. Backend reads time only via `clock.sim_now()` |
-| Volunteer GPS movement | **DEMO-STUB** | `VolunteerSim` in the replayer moves volunteers along their assigned routes via the same location endpoint a phone would use |
-| Background volunteers auto-accept | **DEMO-STUB** | Only in the replayer |
+| Replay clock / historical streaming | **DEMO-STUB (by design)** | `backend/app/demo/runner.py` (dashboard *Load scenario*) streams the real feeds + scenario reports through the ingestion functions in time order, waiting for the pipeline after each report. Backend reads time only via `clock.sim_now()` |
+| Volunteer GPS movement + fast-forward | **DEMO-STUB** | `runner.Movement` moves volunteers along their ACCEPTED route (arriving at the routed ETA) via the same location function a phone would call, and runs the clock at `travel_speed` (30×) while someone drives |
+| Candidate reveal pacing on the dashboard | **Presentation only** | The decision is already made when the animation starts; scan → filter → rank → chosen just paces real results |
+| `/volunteer` auto-follow | **DEMO-STUB login** | With no `?id=`, the phone shows whoever was most recently dispatched, so the tab can be opened before the match |
+| Rerouting UI | **Removed from demo** | Turn-by-turn and rerouting belong to the volunteer's maps app (the phone links out to Google/Apple Maps). The backend adaptation ladder still exists (`ladder_check.py`) |
 | Resident reports, radio transcripts, volunteer roster | **DEMO-STUB data, REAL logic** | Hand-authored in `replay/scenario.yaml`; no code paths reference them |
-| Demo geography (Bee Tree Rd / Riverwood Rd) | **Scenario authoring** | Chosen by computing real routes on the OSM graph so the closure genuinely crosses the route and a real detour exists |
+| Scenario geography | **Scenario authoring** | Reports sit at real Buncombe roads/places (Bee Tree Rd, Dillingham Rd, Pisgah Hwy, …); social posts carry geotags, the rest are geocoded live. Which volunteer wins each incident is decided by the matcher, not the scenario |
 
 ## Real data sources
 
@@ -62,24 +66,24 @@ We are explicit about what generalizes and what exists only for the demo.
 # DB: Tiger Cloud service (set DATABASE_URL in backend/.env), or locally: docker compose up -d (TimescaleDB-HA image w/ PostGIS)
 # then apply backend/app/schema.sql once
 uv venv backend/.venv && uv pip install --python backend/.venv/bin/python \
-  fastapi "uvicorn[standard]" "psycopg[binary]" psycopg-pool openai python-dotenv httpx python-multipart pyyaml osmnx requests
+  fastapi "uvicorn[standard]" "psycopg[binary]" psycopg-pool openai python-dotenv httpx pyyaml osmnx requests
 cp backend/.env.example backend/.env                   # add OPENAI_API_KEY
 for s in fetch_ncdot fetch_usgs load_tiger_acs load_nhc build_graph load_db; do backend/.venv/bin/python backend/scripts/$s.py; done
 (cd backend && .venv/bin/uvicorn app.main:app --port 8000)
-(cd frontend && npm install && npm run dev)            # http://localhost:5173/command , /volunteer?id=1
-backend/.venv/bin/python replay/replayer.py            # press Enter at ⏸ pause points
+(cd frontend && npm install && npm run dev)            # http://localhost:5173/command and /volunteer
 ```
 
-## Demo runbook (3–4 min)
+## Demo runbook (3–4 min, all from the browser)
 
-1. Start the backend + frontend (above). Open `http://localhost:5173/command` on the projector and `http://localhost:5173/volunteer?id=1` (Jordan) on a phone/narrow window.
-2. `backend/.venv/bin/python replay/replayer.py` — resets state, registers volunteers, fast-forwards Sep 27–29 (real NCDOT closures + USGS flood-stage crossings stream in; the water-rescue radio call is correctly *not* turned into a volunteer task; an unconfirmed slide becomes a VERIFY_CONDITION task).
-3. ⏸ **Resident SMS** → Enter. Watch: extraction → new incident → DELIVER_SUPPLIES task (priority, reasoning) → match to Jordan with skipped volunteers + reasons. A neighbor's report then ATTACHES to the same incident.
-4. On the phone: **Accept**. Jordan starts driving (simulated GPS).
-5. ⏸ **Radio: Riverwood Rd bridge washed out** → Enter (while Jordan is still on Tunnel Rd / US-70). Watch: radio decoded → bridge segments closed → route conflict detected → AI keeps Jordan and reroutes via Warren Wilson Rd (dashed red = abandoned route).
-6. When Jordan arrives: upload a photo + note → GPS + vision verification → **VERIFIED** → incident RESOLVED.
-   - `replay/photos/delivery_ok.jpg` / `delivery_bad.jpg` are **AI-generated staged photos (DEMO-STUB)** for rehearsal; use a real photo if you can.
+**Before judges arrive:** open `/command` and press **Load scenario**. It takes 2–3 min of real LLM processing: 26 NCDOT closures and 76 USGS readings from Helene, plus 15 social / NGO / SMS / radio reports, come out as 11 incidents and 10 tasks. It survives backend restarts. Open `/volunteer` in a second tab: it shows a lock screen until someone is dispatched. Between rehearsals, use **↺ Rewind demo**. It undoes dispatches and movement in about a second and keeps the ingested incidents.
+
+1. **Ingestion.** Toggle the *Incoming reports* layers on the map one at a time (social media, NGO & shelter, SMS, radio), then *Conditions* (NCDOT closures, Helene track, USGS gauges, census 65+). The side panel counts what came in from each source.
+2. **Synthesis.** Turn the report layers back off. Eleven incidents are on the map, all built by the same pipeline. Click **Deliver drinking water… Bee Tree Rd**. Its three sources (daughter's SMS, a neighbor's Facebook post, a church outreach list) are drawn as lines into one incident. The panel plays sources → what the LLM understood → link decisions ("merged into same incident") → the task, its hard requirements and the guardrail verdict. For contrast, click the swift-water radio call: no task, because it's a 911 job.
+3. **Match.** Press **▶ Find the best volunteer**. The map scans 16 nearby volunteers, then rules some out with reasons (no vehicle, cargo too small), then ranks the rest by road ETA and picks one. Click any dot for that volunteer's profile and verdict.
+4. **Phone.** Switch to the `/volunteer` tab (or press *Open …'s phone*). A push notification drops onto the lock screen. Tap it to read the mission: why you, what to bring, what's needed. Press **Accept mission**.
+5. **Back to the dashboard.** The route turns solid and the volunteer drives at 30× fast-forward. The progress bar counts down, and **On scene** lights up when GPS enters the geofence. *(Optional finale: tap **Mark complete** on the phone → incident turns green, resolved.)*
 
 ### Checks
-- `replay/e2e_check.py` — plays the presenter against `replayer.py --no-pause` (accept, bad photo → REJECTED, good photo → VERIFIED).
-- `replay/ladder_check.py` — **resets the DB**; uses inputs not in the scenario to exercise REASSIGN (volunteer trapped by a washout), ESCALATE (no one can reach a household), and recovery when a reopening is radioed in.
+- `replay/replayer.py` — loads the scenario from the terminal (same as the dashboard button).
+- `replay/e2e_check.py` — **rewinds**, then plays the story via the API: dispatch the best-corroborated incident, accept, wait for GPS arrival, mark complete → incident RESOLVED.
+- `replay/ladder_check.py` — **resets the DB** (press *Load scenario* afterwards); uses inputs not in the scenario to exercise REASSIGN (volunteer trapped by a washout), ESCALATE (no one can reach a household), and recovery when a reopening is radioed in.

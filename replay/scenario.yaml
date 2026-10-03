@@ -1,27 +1,23 @@
-# DEMO-STUB scenario. Real feeds (NCDOT TIMS, USGS) are pulled from backend/data automatically.
-# Everything under `events` and `volunteers` is hand-authored for the demo and flows
-# through the same ingestion API / logic as real data.
+# DEMO-STUB scenario, loaded from the dashboard ("Load scenario") by backend/app/demo/runner.py.
+# Real feeds (NCDOT TIMS closures, USGS gauges) are pulled from backend/data automatically.
+# Everything under `events` and `volunteers` is hand-authored and flows through the same
+# ingestion API / LLM pipeline / validator / matcher as real data. No code path references it.
 
-start: "2024-09-27T10:00:00Z"   # 6:00 AM EDT, Helene's flooding underway
-end:   "2024-09-30T04:00:00Z"
-reset: true
+start: "2024-09-27T10:00:00Z"        # 6:00 AM EDT, Helene's flooding underway
+end:   "2024-09-29T14:10:00Z"
+live_start: "2024-09-29T14:10:00Z"   # clock parks here when ingestion finishes; dispatch happens live
+travel_speed: 30                     # clock fast-forward while a volunteer is driving
 ncdot_counties: [Buncombe]
 usgs_every_min: 60
 
-# Fast-forward through the storm, then near-real-time for the coordination story.
-speed:
-  - { from: "2024-09-27T10:00:00Z", speed: 3000 }   # ~1 min per 2 days
-  - { from: "2024-09-29T13:50:00Z", speed: 12 }     # coordination phase
-
 volunteers:
-  # Demo volunteer — the presenter plays Jordan in the volunteer app.
-  - { name: "Jordan Reyes", auto_accept: false, lon: -82.500, lat: 35.605,
+  - { name: "Jordan Reyes", lon: -82.500, lat: 35.605,
       vehicle: { type: pickup, capacity_gal: 80, seats: 2, high_clearance: true },
       skills: [heavy_lifting], equipment: [water_jugs] }
-  # Closer to Bee Tree Rd, but without a suitable vehicle — matching should skip them.
   - { name: "Maria Lopez", lon: -82.405, lat: 35.602, skills: [first_aid, spanish] }
   - { name: "Sam Whitaker", lon: -82.398, lat: 35.598, skills: [chainsaw], equipment: [chainsaw] }
-  # Further away, capable.
+  - { name: "Tom Becker", lon: -82.372, lat: 35.611,
+      vehicle: { type: sedan, capacity_gal: 12, seats: 4, high_clearance: false } }
   - { name: "Priya Nair", lon: -82.585, lat: 35.575,
       vehicle: { type: suv, capacity_gal: 30, seats: 5, high_clearance: true }, skills: [first_aid] }
   - { name: "Ben Carter", lon: -82.555, lat: 35.620,
@@ -31,13 +27,26 @@ volunteers:
   - { name: "Tasha Green", lon: -82.640, lat: 35.555,
       vehicle: { type: minivan, capacity_gal: 40, seats: 7, high_clearance: false } }
   - { name: "Luis Ortega", lon: -82.470, lat: 35.540,
-      vehicle: { type: pickup, capacity_gal: 60, seats: 3, high_clearance: true }, skills: [chainsaw], equipment: [chainsaw, generator] }
+      vehicle: { type: pickup, capacity_gal: 60, seats: 3, high_clearance: true },
+      skills: [chainsaw, spanish], equipment: [chainsaw, generator] }
   - { name: "Hannah Moore", lon: -82.560, lat: 35.640, skills: [medical, cpr] }
   - { name: "Devon Price", lon: -82.320, lat: 35.617,
       vehicle: { type: sedan, capacity_gal: 8, seats: 4, high_clearance: false } }
+  - { name: "Rosa Jimenez", lon: -82.660, lat: 35.640,
+      vehicle: { type: suv, capacity_gal: 25, seats: 5, high_clearance: true }, skills: [spanish, first_aid] }
+  - { name: "Marcus Bell", lon: -82.540, lat: 35.700,
+      vehicle: { type: pickup, capacity_gal: 50, seats: 3, high_clearance: true },
+      skills: [heavy_lifting], equipment: [ladder] }
+  - { name: "Grace Liu", lon: -82.420, lat: 35.530,
+      vehicle: { type: minivan, capacity_gal: 30, seats: 7, high_clearance: false }, equipment: [cooler] }
+  - { name: "Owen Hart", lon: -82.450, lat: 35.750,
+      vehicle: { type: suv, capacity_gal: 20, seats: 5, high_clearance: true } }
+  - { name: "Keisha Brooks", lon: -82.700, lat: 35.520,
+      vehicle: { type: pickup, capacity_gal: 40, seats: 2, high_clearance: true },
+      skills: [heavy_lifting], equipment: [ladder] }
 
 events:
-  # --- During the storm: life-safety traffic is for professionals, not volunteers ---
+  # ---------- During the storm: life-safety traffic is for professionals, not volunteers ----------
   - at: "2024-09-27T15:40:00Z"
     kind: radio
     label: "Water rescue traffic (should NOT become a volunteer task)"
@@ -47,15 +56,76 @@ events:
       transcript: "Engine 2 to Buncombe, swift water, we got 2 occupants on a vehicle roof, Whitson Ave at the river, need swift water team, water still rising, 10-18."
       confidence: 0.82
 
-  # --- Sep 28: background activity ---
+  # ---------- Sep 28 ----------
+  - at: "2024-09-28T16:20:00Z"
+    kind: report
+    label: "Social: grandfather unreachable in Barnardsville"
+    body:
+      source_type: social
+      channel: x
+      reporter: "@kaylin_mtns"
+      lon: -82.418
+      lat: 35.781
+      text: "PLEASE SHARE 🙏 my grandpa Earl (79) lives alone on Dillingham Rd in Barnardsville / Big Ivy. no cell service up there and nobody's heard from him since thursday night. he doesnt drive anymore. can anyone nearby check on him?? #HeleneHelp #Barnardsville"
+
   - at: "2024-09-28T19:15:00Z"
     kind: report
-    label: "Shelter request"
+    label: "Shelter: out of infant formula"
     body:
       source_type: shelter
       channel: hotline
       reporter: "AB Tech shelter coordinator"
       text: "This is the shelter at AB Tech, 340 Victoria Rd Asheville. We have 3 infants here and are out of formula and diapers (size 3 and 4). Can someone bring some? Not an emergency but needed tonight."
+
+  - at: "2024-09-28T21:05:00Z"
+    kind: report
+    label: "Resident SMS (Spanish): family needs water + diapers in Leicester"
+    body:
+      source_type: resident
+      channel: sms
+      reporter: "Yesenia"
+      text: "hola, somos una familia de 5 en Leicester Hwy cerca del Dollar General en Leicester. no tenemos agua desde el viernes y tenemos 2 niños chiquitos, se nos acabaron los pañales. no tenemos carro. alguien nos puede ayudar?"
+
+  - at: "2024-09-28T23:30:00Z"
+    kind: report
+    label: "Social: diabetic neighbor's insulin warming in West Asheville"
+    body:
+      source_type: social
+      channel: nextdoor
+      reporter: "Rachel M. · West Asheville"
+      lon: -82.5865
+      lat: 35.5786
+      text: "My neighbor on Haywood Rd (by the old Sears lot) is type 1 diabetic and her insulin has been out of the fridge since power went out Friday. Does anyone have a cooler + ice they could bring her? She's ok for now but worried."
+
+  # ---------- Sep 29 morning ----------
+  - at: "2024-09-29T11:10:00Z"
+    kind: report
+    label: "NGO: food boxes need drivers to Fairview"
+    body:
+      source_type: ngo
+      channel: web
+      reporter: "MANNA FoodBank dispatch"
+      text: "MANNA request: Cane Creek Rd area in Fairview — about 15 households still cut off from groceries. We have 15 food boxes staged and need a volunteer driver to take them to the distribution table at Fairview Elementary School, Fairview NC. Boxes ~25 lb each, minivan or pickup works."
+
+  - at: "2024-09-29T11:45:00Z"
+    kind: report
+    label: "NGO: dialysis patient needs a ride from Weaverville"
+    body:
+      source_type: ngo
+      channel: hotline
+      reporter: "Council on Aging of Buncombe County"
+      text: "Client on Reems Creek Rd, Weaverville NC, 66, needs transportation to her dialysis appointment at the Asheville dialysis center tomorrow morning. Her regular transit service is suspended. She can walk with a cane, one passenger."
+
+  - at: "2024-09-29T12:20:00Z"
+    kind: report
+    label: "Social: roof hole, elderly man alone in Candler"
+    body:
+      source_type: social
+      channel: facebook
+      reporter: "Candler Community Helene Group"
+      lon: -82.7155
+      lat: 35.5175
+      text: "Reposting for my dad (68, lives alone) on Pisgah Hwy in Candler — a big oak came down on the back of his house and there's a hole in the roof, rain coming in. He needs a tarp put up, he can't get on a ladder himself. Anyone with a ladder and a strong back?"
 
   - at: "2024-09-29T12:30:00Z"
     kind: radio
@@ -66,10 +136,20 @@ events:
       transcript: "Unit 214, caller advising possible slide across Town Mtn Rd up past the overlook, unknown if passable, caller is second hand, no units free to check."
       confidence: 0.7
 
-  # --- The story ---
-  - at: "2024-09-29T14:00:00Z"
+  - at: "2024-09-29T12:50:00Z"
     kind: report
-    pause: true
+    label: "Social: oxygen user needs ride to shelter in Black Mountain"
+    body:
+      source_type: social
+      channel: facebook
+      reporter: "Black Mountain Neighbors"
+      lon: -82.3172
+      lat: 35.6262
+      text: "My aunt on Montreat Rd in Black Mountain uses an oxygen concentrator and the power is still out. Her backup tanks will last till about tonight. She needs a ride to the shelter at the Black Mountain Library where they have generator power. She's stable, not an emergency yet."
+
+  # ---------- The hero incident: three independent sources, one household ----------
+  - at: "2024-09-29T13:20:00Z"
+    kind: report
     label: "★ Resident SMS: elderly parents need drinking water"
     body:
       source_type: resident
@@ -77,25 +157,22 @@ events:
       reporter: "Dana (daughter)"
       text: "hi is this the help line? my parents are at 1144 Bee Tree Rd in Swannanoa, both in their 80s. no power since friday so the well pump is out = no water. they're down to like 2 bottles of drinking water. dad uses a walker and they cant drive out. can someone bring water?? I'm in Charlotte and can't get there"
 
-  - at: "2024-09-29T14:03:00Z"
+  - at: "2024-09-29T13:35:00Z"
     kind: report
-    label: "Neighbor corroborates (should ATTACH to same incident)"
+    label: "★ Social: neighbor posts about the same couple"
     body:
-      source_type: resident
-      channel: app
-      reporter: "neighbor"
-      text: "The older couple at the end of our road on Bee Tree (1144) still have no water, I gave them what I could but we're running low too."
+      source_type: social
+      channel: facebook
+      reporter: "Swannanoa Valley Helene Updates"
+      lon: -82.3995
+      lat: 35.6265
+      text: "The older couple at the end of our road on Bee Tree (1144) still have no water, I gave them what I could but we're running low too. Anyone with a truck able to bring a few days' worth? #Swannanoa"
 
-  - at: "2024-09-29T14:06:00Z"
-    kind: radio
-    pause: true
-    label: "★ Radio: Riverwood Rd river crossing impassable (mid-route closure)"
+  - at: "2024-09-29T13:50:00Z"
+    kind: report
+    label: "★ NGO: church outreach list flags the same household"
     body:
-      agency: "Swannanoa FD"
-      channel: "BC Fire Dispatch"
-      transcript: "Engine 2 to Buncombe, be advised Riverwood Rd at the Swannanoa River bridge is impassable, approach is washed out on the north side, request PW, we're 10-8 heading back toward State St."
-      confidence: 0.88
-
-  - at: "2024-09-30T03:59:00Z"
-    kind: wait
-    label: "end"
+      source_type: ngo
+      channel: web
+      reporter: "Swannanoa Valley Fellowship outreach"
+      text: "Outreach check-in list, Bee Tree Rd Swannanoa: #1144 — couple in their 80s, husband uses a walker, no well water since power loss, no vehicle access out. Need drinking water delivered (several days' supply). We have no drivers free today."

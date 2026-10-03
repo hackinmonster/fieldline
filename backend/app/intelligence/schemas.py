@@ -75,13 +75,6 @@ class TaskProposal(BaseModel):
     supporting_observation_ids: list[int] = Field(default_factory=list, description="ids of observations that justify the task")
 
 
-class EvidenceVerdict(BaseModel):
-    consistent_with_task: bool
-    reasoning: str
-    confidence: float
-    observed_items: list[str] = Field(default_factory=list)
-
-
 class AdaptAction(str, Enum):
     REROUTE = "REROUTE"
     REASSIGN = "REASSIGN"

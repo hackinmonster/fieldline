@@ -179,19 +179,6 @@ CREATE TABLE IF NOT EXISTS assignments (
 );
 CREATE INDEX IF NOT EXISTS assignments_route_idx ON assignments USING gist (route);
 
-CREATE TABLE IF NOT EXISTS evidence (
-  id bigserial PRIMARY KEY,
-  task_id bigint NOT NULL,
-  volunteer_id bigint,
-  photo_path text,
-  text text,
-  geom geometry(Point, 4326),
-  submitted_at timestamptz NOT NULL,
-  verdict text,                    -- VERIFIED | REJECTED
-  verdict_reasoning text,
-  details jsonb
-);
-
 -- Activity feed: every decision the system makes, for the dashboard.
 CREATE TABLE IF NOT EXISTS activity (
   id bigserial,
