@@ -11,6 +11,9 @@ npm run dev            # http://localhost:5174
   `POST /volunteers` on sign-up, accept / decline / complete, availability, field reports, WebSocket updates.
 - **Finishing a task** is one tap: "Yes, I did it". No photos or codes. The backend's `POST /assignments/:id/complete`
   checks the volunteer's last GPS fix is within 200 m of the task and returns 409 otherwise; the button stays locked until then.
+- **Declining** moves the task to a "You declined" section at the bottom of the Tasks tab. It stays open to you:
+  "Accept and navigate" calls the new `POST /tasks/:id/claim` (`{volunteer_id}`), which works as long as nobody has
+  accepted it yet (a pending offer to someone else is withdrawn) and you have no other active task.
 - **Demo mode:** if the backend is unreachable, the app says so and runs on `src/data/fixture.json`.
   Jordan's offer arrives about 9 s after onboarding; on the active task, "Demo: drive the route" moves you along it.
   Force it with `?demo`.
@@ -20,7 +23,7 @@ npm run dev            # http://localhost:5174
 | Path | What |
 |---|---|
 | `/welcome` → `/onboard/identity` → `/onboard/skills` → `/onboard/permissions` | Onboarding |
-| `/map` | Main disaster map (default home). Shows one task: your offer or active task, else the best match. Swipe the sheet up for the Tasks tab |
+| `/map` | Main disaster map (default home). Shows one task (your offer or active task, else the best match) in a content-sized island. Swipe it up for the Tasks tab |
 | `/feed`, `/tasks`, `/profile` | Tab screens |
 | `/lock` | Lock-screen notification concept |
 | `/task/:id` | Task invitation / review |

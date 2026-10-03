@@ -8,13 +8,13 @@ import { rank } from '../lib/match'
 
 /** The receipt: what was marked done, where and when, and what is next nearby. */
 export default function Done() {
-  const { lastCompletion, history, me, snap } = useStore()
+  const { lastCompletion, history, me, snap, declinedIds } = useStore()
   const nav = useNavigate()
   const c = lastCompletion ?? (history[0] ? { task: history[0].task, at: new Date(history[0].assignment.updated_at), distance_m: null, note: '' } : null)
   if (!c) return <div className="done"><Empty icon={MapPin} title="No completed tasks yet" action={<Button onClick={() => nav('/map')}>Find a task</Button>}>Your finished work shows up here.</Empty></div>
 
   const K = TASK_KIND[c.task.type]
-  const next = rank(me, snap?.tasks ?? []).filter((r) => r.fits).length
+  const next = rank(me, snap?.tasks ?? [], declinedIds).filter((r) => r.fits && !r.declined).length
 
   return (
     <div className="done">

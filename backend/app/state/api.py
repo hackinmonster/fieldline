@@ -150,6 +150,48 @@ async def decline(aid: int):
     return {"ok": True}
 
 
+class Claim(BaseModel):
+    volunteer_id: int
+
+
+@router.post("/tasks/{tid}/claim")
+async def claim(tid: int, c: Claim):
+    """A volunteer takes a task directly, e.g. one they declined earlier and changed their mind about.
+    Allowed while nobody has accepted it: a pending offer to someone else is withdrawn. Returns an
+    ACCEPTED assignment with a fresh route."""
+    task = await T.get_task(tid)
+    if not task:
+        raise HTTPException(404)
+    if task["status"] not in ("OPEN", "BLOCKED", "ASSIGNED"):
+        raise HTTPException(409, "another volunteer already accepted this task" if task["status"] == "EN_ROUTE"
+                            else f"task is {task['status'].lower()}")
+    vol = await db.fetchrow("SELECT id, name, skills, equipment, vehicle, verify_safe, ST_X(last_geom) AS lon, ST_Y(last_geom) AS lat "
+                            "FROM volunteers WHERE id=%s", c.volunteer_id)
+    if not vol:
+        raise HTTPException(404, "volunteer not found")
+    if await db.fetchval("SELECT 1 FROM assignments WHERE volunteer_id=%s AND status IN ('OFFERED','ACCEPTED')", vol["id"]):
+        raise HTTPException(409, "finish or decline your current task first")
+    gaps = matcher.capability_gaps(vol, task)
+    if gaps:
+        raise HTTPException(409, "you are missing: " + ", ".join(gaps))
+    r = await routing.route((vol["lon"], vol["lat"]), (task["lon"], task["lat"]))
+    if r is None:
+        raise HTTPException(409, "no open road route to the task")
+    if not vol["vehicle"]:
+        r = {**r, "eta_s": routing.path_length_m(r["coords"]) / matcher.WALK_MPS, "mode": "walk"}
+    pending = await T.active_assignment(tid)
+    if pending:  # offered to someone else, not yet accepted
+        await db.execute("UPDATE assignments SET status='RELEASED', reason=%s, updated_at=%s WHERE id=%s",
+                         f"withdrawn: {vol['name']} took the task", sim_now(), pending["id"])
+        await T.publish_assignment(pending["id"])
+    a = await matcher.create_assignment(task, {**vol, "route": r}, f"{vol['name']} took the task directly")
+    await db.execute("UPDATE assignments SET status='ACCEPTED', updated_at=%s WHERE id=%s", sim_now(), a["id"])
+    await T.set_status(tid, "EN_ROUTE", f"{vol['name']} took the task")
+    await activity("accept", f"✔ {vol['name']} took task #{tid} directly (ETA {r['eta_s']/60:.0f} min).",
+                   {"assignment_id": a["id"], "task_id": tid})
+    return await T.publish_assignment(a["id"])
+
+
 class Done(BaseModel):
     note: str = ""
 

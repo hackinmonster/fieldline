@@ -32,17 +32,19 @@ export function vehicleName(type?: string) {
   return ({ pickup: 'pickup', suv: 'SUV', sedan: 'car', minivan: 'minivan' } as Record<string, string>)[type ?? ''] ?? type ?? 'vehicle'
 }
 
-export type Ranked = { task: Task; distance_m: number; fits: boolean; score: number }
+export type Ranked = { task: Task; distance_m: number; fits: boolean; score: number; declined: boolean }
 
-/** Recommendation order for the volunteer's own view: fit first, then urgency weighed against distance. */
-export function rank(v: Volunteer | null, tasks: Task[]): Ranked[] {
+/** Recommendation order for the volunteer's own view: fit first, then urgency weighed against distance; declined last. */
+export function rank(v: Volunteer | null, tasks: Task[], declined: Set<number> = new Set()): Ranked[] {
   return tasks
     .filter((t) => t.status === 'OPEN' || t.status === 'ASSIGNED' || t.status === 'BLOCKED')
     .map((t) => {
       const d = v ? meters([v.lon, v.lat], [t.lon, t.lat]) : 0
       const fits = v ? qualifies(v, t) : false
-      const score = (fits ? 1 : 0) * 10 + t.priority * 4 - d / 8000
-      return { task: t, distance_m: d, fits, score }
+      const isDeclined = declined.has(t.id)
+      // Declined tasks sink to the bottom but stay listed, so the volunteer can change their mind.
+      const score = (isDeclined ? -100 : 0) + (fits ? 1 : 0) * 10 + t.priority * 4 - d / 8000
+      return { task: t, distance_m: d, fits, score, declined: isDeclined }
     })
     .sort((a, b) => b.score - a.score)
 }

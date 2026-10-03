@@ -10,11 +10,12 @@ import { miles, minutes } from '../lib/format'
 import type { Task } from '../lib/types'
 
 export default function Tasks() {
-  const { snap, me, assignment, task, setAvailable } = useStore()
+  const { snap, me, assignment, task, setAvailable, declinedIds } = useStore()
   const nav = useNavigate()
-  const ranked = useMemo(() => rank(me, snap?.tasks ?? []).filter((r) => r.task.id !== task?.id), [me, snap, task])
-  const fits = ranked.filter((r) => r.fits)
-  const notYet = ranked.filter((r) => !r.fits)
+  const ranked = useMemo(() => rank(me, snap?.tasks ?? [], declinedIds).filter((r) => r.task.id !== task?.id), [me, snap, task, declinedIds])
+  const fits = ranked.filter((r) => r.fits && !r.declined)
+  const notYet = ranked.filter((r) => !r.fits && !r.declined)
+  const declined = ranked.filter((r) => r.declined)
 
   return (
     <div className="tasks">
@@ -74,6 +75,18 @@ export default function Tasks() {
                 <TaskCard key={r.task.id} task={r.task} distance_m={r.distance_m} fits={false}
                   gaps={me ? ledger(me, r.task).filter((l) => !l.ok).map((l) => `Needs ${l.label.toLowerCase()}`) : undefined}
                   onClick={() => nav(`/task/${r.task.id}`)} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {declined.length > 0 && (
+          <section>
+            <h2 className="section-title">You declined <span className="num">· {declined.length}</span></h2>
+            <p className="hint section-hint">Still open. Changed your mind? Open one and take it.</p>
+            <div className="card-list">
+              {declined.map((r) => (
+                <TaskCard key={r.task.id} task={r.task} distance_m={r.distance_m} declined onClick={() => nav(`/task/${r.task.id}`)} />
               ))}
             </div>
           </section>

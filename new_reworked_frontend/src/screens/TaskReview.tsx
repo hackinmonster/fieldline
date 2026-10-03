@@ -12,9 +12,9 @@ import { ON_SITE_MIN, SAFETY, mapsLink, sourcesFor } from '../lib/taskinfo'
 
 export default function TaskReview() {
   const { id } = useParams()
-  const { snap, me, assignment, accept, decline, now } = useStore()
+  const { snap, me, assignment, accept, decline, claim, declinedIds, now } = useStore()
   const nav = useNavigate()
-  const [busy, setBusy] = useState<'accept' | 'decline' | null>(null)
+  const [busy, setBusy] = useState<'accept' | 'decline' | 'claim' | null>(null)
   const [confirmDecline, setConfirmDecline] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const mapRef = useRef<MapHandle>(null)
@@ -41,6 +41,12 @@ export default function TaskReview() {
   const drive = offered?.eta_s ?? null
   const total = (drive ?? 0) + ON_SITE_MIN[t.type] * 60
   const coords = (route?.line.coordinates ?? [[t.lon, t.lat]]) as LonLat[]
+
+  const takeBack = async () => {
+    setBusy('claim'); setErr(null)
+    try { await claim(t.id); nav('/active') }
+    catch (e: any) { setErr(String(e.message).replace(/^\d+:\s*/, '')) } finally { setBusy(null) }
+  }
 
   const act = async (kind: 'accept' | 'decline') => {
     if (!offered) return
@@ -148,6 +154,11 @@ export default function TaskReview() {
               <Button variant="primary" size="lg" icon={Check} busy={busy === 'accept'} className="grow" onClick={() => act('accept')}>Accept and navigate</Button>
             </div>
           )
+        ) : declinedIds.has(t.id) ? (
+          <div className="not-offered">
+            <p>You declined this earlier. It is still open{assignment ? ', but finish or decline your current task first' : ', so you can take it now'}.</p>
+            <Button variant="primary" size="lg" block icon={Check} busy={busy === 'claim'} disabled={!!assignment} onClick={takeBack}>Accept and navigate</Button>
+          </div>
         ) : offered?.status === 'ACCEPTED' ? (
           <Button variant="primary" size="lg" block icon={Navigation} onClick={() => nav('/active')}>Resume navigation</Button>
         ) : (

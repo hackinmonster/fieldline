@@ -63,6 +63,10 @@ type Ctx = {
   register: () => Promise<void>
   signInAs: (vid: number) => void
   accept: (aid: number) => Promise<void>
+  /** Take a task directly (e.g. one you declined and changed your mind about). Ends ACCEPTED. */
+  claim: (taskId: number) => Promise<void>
+  /** Tasks you declined that nobody else has taken: shown last, still yours to take. */
+  declinedIds: Set<number>
   decline: (aid: number) => Promise<void>
   complete: (aid: number, note: string) => Promise<Completion>
   setAvailable: (on: boolean) => Promise<void>
@@ -194,6 +198,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => b.assignment.updated_at.localeCompare(a.assignment.updated_at))
   }, [snap, vid])
 
+  const declinedIds = useMemo(() => {
+    const out = new Set<number>()
+    if (!snap || vid == null) return out
+    for (const a of snap.assignments) {
+      if (a.volunteer_id !== vid || a.status !== 'RELEASED' || !/declined/i.test(a.reason)) continue
+      const t = snap.tasks.find((x) => x.id === a.task_id)
+      if (t && t.id !== task?.id && ['OPEN', 'BLOCKED', 'ASSIGNED'].includes(t.status)) out.add(t.id)
+    }
+    return out
+  }, [snap, vid, task])
+
   // ---- New offer → in-app banner (+ system notification when allowed) ----
   useEffect(() => {
     if (!assignment || assignment.status !== 'OFFERED' || seenOffers.current.has(assignment.id)) return
@@ -287,6 +302,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })
   }, [mode, refresh])
 
+  const claim = useCallback(async (taskId: number) => {
+    setOffer(null)
+    if (mode === 'live') {
+      if (vid == null) throw new Error('Sign in first')
+      await post(`/tasks/${taskId}/claim`, { volunteer_id: vid }); await refresh(); return
+    }
+    const t = snap?.tasks.find((x) => x.id === taskId)
+    if (!t || !me) throw new Error('404: task not found')
+    if (!['OPEN', 'BLOCKED', 'ASSIGNED'].includes(t.status)) throw new Error('409: another volunteer already accepted this task')
+    if (assignment) throw new Error('409: finish or decline your current task first')
+    // Demo routing: reuse the scripted route for this task if there is one, else a straight line at ~30 mph.
+    const prior = fixture.assignments.find((a) => a.task_id === taskId && a.volunteer_id === DEMO_VID && a.route)
+    const d = meters([me.lon, me.lat], [t.lon, t.lat])
+    const at = (now ?? new Date()).toISOString()
+    const a: Assignment = {
+      id: Date.now(), task_id: taskId, volunteer_id: DEMO_VID, status: 'ACCEPTED', reason: `${me.name} took the task directly`,
+      route: prior?.route ?? { type: 'LineString', coordinates: [[me.lon, me.lat], [t.lon, t.lat]] },
+      steps: prior?.steps, distance_m: prior?.distance_m ?? Math.round(d * 1.3), eta_s: prior?.eta_s ?? Math.round((d * 1.3) / 13.4),
+      created_at: at, updated_at: at,
+    }
+    patchDemo((s) => ({
+      ...setTask(s, taskId, 'EN_ROUTE'),
+      assignments: [...s.assignments.map((x) => (x.task_id === taskId && x.status === 'OFFERED'
+        ? { ...x, status: 'RELEASED' as const, reason: `withdrawn: ${me.name} took the task` } : x)), a],
+    }))
+  }, [mode, vid, snap, me, assignment, now, refresh])
+
   const decline = useCallback(async (aid: number) => {
     setOffer(null)
     if (mode === 'live') { await post(`/assignments/${aid}/decline`); await refresh(); return }
@@ -340,7 +382,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     mode, socketUp, snap, now, profile, setProfile, me, assignment, task, history,
     offer, dismissOffer: () => setOffer(null), lastCompletion,
-    register, signInAs, accept, decline, complete, setAvailable, report,
+    register, signInAs, accept, claim, declinedIds, decline, complete, setAvailable, report,
     demoDrive: setDriving, driving, signOut,
   }
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>

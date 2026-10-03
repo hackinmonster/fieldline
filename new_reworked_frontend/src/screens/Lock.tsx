@@ -8,9 +8,9 @@ import { miles, minutes } from '../lib/format'
 
 /** Concept: the offer as it lands on a locked phone. Uses the real offer when there is one. */
 export default function Lock() {
-  const { snap, me, assignment, task, now } = useStore()
+  const { snap, me, assignment, task, now, declinedIds } = useStore()
   const nav = useNavigate()
-  const t = (assignment?.status === 'OFFERED' && task) || rank(me, snap?.tasks ?? []).find((r) => r.fits)?.task || null
+  const t = (assignment?.status === 'OFFERED' && task) || rank(me, snap?.tasks ?? [], declinedIds).find((r) => r.fits && !r.declined)?.task || null
   const eta = assignment?.status === 'OFFERED' && task ? assignment.eta_s : null
   const d = t && me ? meters([me.lon, me.lat], [t.lon, t.lat]) : null
   const time = now?.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/, '')

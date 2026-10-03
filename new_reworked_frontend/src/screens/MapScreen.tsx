@@ -1,22 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, ChevronUp, Layers as LayersIcon, LocateFixed, MessageSquarePlus, Search, TrafficCone, X } from 'lucide-react'
+import { ArrowRight, ChevronUp, Layers as LayersIcon, LocateFixed, MessageSquarePlus, Navigation, Search, TrafficCone, X } from 'lucide-react'
 import { useStore } from '../lib/store'
 import MapCanvas, { ALL_LAYERS, type Layers, type MapHandle, type RouteDraw } from '../components/MapCanvas'
-import BottomSheet from '../components/BottomSheet'
-import { Button, Chip, Empty, IconButton, Skeleton, UrgencyChip } from '../components/ui'
+import TaskCard from '../components/TaskCard'
+import { Chip, IconButton, Skeleton } from '../components/ui'
 import ReportSheet from '../components/ReportSheet'
-import { ledger, rank } from '../lib/match'
+import { ledger, qualifies, rank } from '../lib/match'
 import { meters, type LonLat } from '../lib/geo'
 import { ago, miles, minutes } from '../lib/format'
 import { RESOURCE, TASK_KIND, isDone } from '../lib/vocab'
-import type { Task } from '../lib/types'
 
-// One resting height; dragging the sheet up hands off to the Tasks tab for the full list.
-const SNAPS = [404, 700]
 
 export default function MapScreen() {
-  const { snap, me, assignment, task: myTask, now } = useStore()
+  const { snap, me, assignment, task: myTask, now, declinedIds } = useStore()
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const mapRef = useRef<MapHandle>(null)
@@ -25,15 +22,16 @@ export default function MapScreen() {
   const [query, setQuery] = useState('')
   const [reporting, setReporting] = useState(false)
   const [resourceId, setResourceId] = useState<number | null>(null)
+  const [islandH, setIslandH] = useState(190)
 
   const selectedId = params.get('task') ? Number(params.get('task')) : null
   const focusLon = params.get('lon'), focusLat = params.get('lat')
   const resource = resourceId != null ? snap?.resources?.find((r) => r.id === resourceId) ?? null : null
 
-  const ranked = useMemo(() => rank(me, snap?.tasks ?? []).filter((r) => !isDone(r.task)), [me, snap])
+  const ranked = useMemo(() => rank(me, snap?.tasks ?? [], declinedIds).filter((r) => !isDone(r.task)), [me, snap, declinedIds])
   // The map shows exactly one task: one you were sent to (from search or the feed), else your own offer or task,
   // else the best match (fits you first, then urgency against distance).
-  const best = ranked.find((r) => r.fits)?.task ?? ranked[0]?.task ?? null
+  const best = ranked.find((r) => r.fits && !r.declined)?.task ?? ranked.find((r) => !r.declined)?.task ?? null
   const shown = (selectedId != null ? snap?.tasks.find((t) => t.id === selectedId) : null) ?? myTask ?? best
   const isMine = !!shown && shown.id === myTask?.id
   const more = ranked.filter((r) => r.task.id !== shown?.id).length
@@ -52,8 +50,8 @@ export default function MapScreen() {
   useEffect(() => {
     if (!shown || !me || focusLon) return
     const coords = route && route.kind !== 'preview' ? route.line.coordinates as LonLat[] : [[me.lon, me.lat], [shown.lon, shown.lat]] as LonLat[]
-    mapRef.current?.fit(coords, { bottom: SNAPS[0], top: 190 })
-  }, [shown?.id, !!me, !!snap]) // eslint-disable-line react-hooks/exhaustive-deps
+    mapRef.current?.fit(coords, { bottom: islandH, top: 190 })
+  }, [shown?.id, !!me, !!snap, islandH > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (focusLon && focusLat) mapRef.current?.flyTo([Number(focusLon), Number(focusLat)], 14)
   }, [focusLon, focusLat, !!snap])
@@ -82,7 +80,7 @@ export default function MapScreen() {
   return (
     <div className="map-screen">
       <MapCanvas ref={mapRef} snap={snap} me={me} layers={layers} selectedTaskId={shown?.id ?? null} mineTaskId={myTask?.id ?? null}
-        route={route} filter={(t) => t.id === shown?.id} padBottom={SNAPS[0]}
+        route={route} filter={(t) => t.id === shown?.id} padBottom={islandH}
         onSelectTask={() => undefined} onSelectResource={(id) => setResourceId(id)} />
 
       {/* Top: search, advisory */}
@@ -110,7 +108,7 @@ export default function MapScreen() {
       </div>
 
       {/* Right: controls */}
-      <div className="map-controls" style={{ bottom: SNAPS[0] + 16 }}>
+      <div className="map-controls" style={{ bottom: islandH + 12 }}>
         <IconButton icon={LayersIcon} label="Layers and legend" className={`glass${showLayers ? ' is-on' : ''}`} onClick={() => setShowLayers(!showLayers)} />
         <IconButton icon={MessageSquarePlus} label="Report what you see" className="glass" onClick={() => setReporting(true)} />
         <IconButton icon={LocateFixed} label="Center on me" className="glass" onClick={() => mapRef.current?.recenter()} />
@@ -118,8 +116,7 @@ export default function MapScreen() {
 
       {showLayers && <LayerPanel layers={layers} setLayers={setLayers} onClose={() => setShowLayers(false)} />}
 
-      <BottomSheet snaps={SNAPS} index={0} onIndex={(i) => { if (i > 0) nav('/tasks') }} label="Best match"
-        header={resource ? null : <div className="sheet-head"><div className="eyebrow">{eyebrow}</div></div>}>
+      <Island onHeight={setIslandH} onSwipeUp={() => nav('/tasks')}>
         {resource ? (
           <div className="sheet-pad">
             <div className="res-card">
@@ -133,55 +130,73 @@ export default function MapScreen() {
               <IconButton icon={X} label="Close" onClick={() => setResourceId(null)} />
             </div>
           </div>
-        ) : shown ? (
-          <ShownTask task={shown} onClose={selectedId != null ? () => select(null) : undefined} />
         ) : (
-          <Empty icon={Search} title="No open requests nearby">New requests appear here as they come in. You will get an alert when one fits you.</Empty>
+          <>
+            <div className="island-head">
+              <span className="eyebrow">{eyebrow}</span>
+              {selectedId != null && <button className="linkish" onClick={() => select(null)}>Back to best match</button>}
+            </div>
+            {shown && isMine && assignment ? (
+              <button className="my-task" onClick={() => nav(assignment.status === 'ACCEPTED' ? '/active' : `/task/${shown.id}`)}>
+                <span className="my-task-icon"><Navigation size={18} aria-hidden /></span>
+                <span className="grow">
+                  <span className="my-task-title">{shown.title}</span>
+                  <span className="sub num">{minutes(assignment.eta_s)} drive{me && ` · ${miles(meters([me.lon, me.lat], [shown.lon, shown.lat]))}`} · {assignment.status === 'ACCEPTED' ? 'resume' : 'review and answer'}</span>
+                </span>
+                <ArrowRight size={20} aria-hidden />
+              </button>
+            ) : shown ? (
+              <TaskCard task={shown} distance_m={me ? meters([me.lon, me.lat], [shown.lon, shown.lat]) : undefined}
+                fits={me ? qualifies(me, shown) : undefined} declined={declinedIds.has(shown.id)}
+                gaps={me ? ledger(me, shown).filter((l) => !l.ok).map((l) => `Needs ${l.label.toLowerCase()}`) : undefined}
+                onClick={() => nav(`/task/${shown.id}`)} />
+            ) : (
+              <p className="island-empty">No open requests nearby right now. You will get an alert when one fits you.</p>
+            )}
+            <button className="sheet-more" onClick={() => nav('/tasks')}>
+              <ChevronUp size={18} aria-hidden />
+              <span className="grow">{more ? <><b className="num">{more}</b> more request{more > 1 ? 's' : ''} nearby</> : 'All requests'}</span>
+              <span className="sheet-more-hint">Swipe up</span>
+            </button>
+          </>
         )}
-        {!resource && (
-          <button className="sheet-more" onClick={() => nav('/tasks')}>
-            <ChevronUp size={18} aria-hidden />
-            <span className="grow">{more ? <><b className="num">{more}</b> more request{more > 1 ? 's' : ''} nearby</> : 'All requests'}</span>
-            <span className="sheet-more-hint">Swipe up</span>
-          </button>
-        )}
-      </BottomSheet>
+      </Island>
 
       {reporting && <ReportSheet onClose={() => setReporting(false)} />}
     </div>
   )
 }
 
-function ShownTask({ task: t, onClose }: { task: Task; onClose?: () => void }) {
-  const { me, assignment, now } = useStore()
-  const nav = useNavigate()
-  const K = TASK_KIND[t.type]
-  const mine = assignment?.task_id === t.id
-  const dist = me ? meters([me.lon, me.lat], [t.lon, t.lat]) : null
-  const lines = me ? ledger(me, t) : []
-  const gaps = lines.filter((l) => !l.ok)
+/** Bottom island: as tall as its content, no taller. Dragging it up hands off to the Tasks tab. */
+function Island({ children, onHeight, onSwipeUp }: { children: ReactNode; onHeight: (h: number) => void; onSwipeUp: () => void }) {
+  const el = useRef<HTMLElement>(null)
+  const start = useRef<number | null>(null)
+  const [dy, setDy] = useState(0)
+  useEffect(() => {
+    if (!el.current) return
+    const ro = new ResizeObserver(() => el.current && onHeight(el.current.offsetHeight))
+    ro.observe(el.current)
+    return () => ro.disconnect()
+  }, [onHeight])
+  const down = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button:not(.sheet-handle), a, input')) return
+    start.current = e.clientY
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  const move = (e: React.PointerEvent) => { if (start.current != null) setDy(Math.min(0, e.clientY - start.current)) }
+  const up = () => {
+    if (start.current == null) return
+    start.current = null
+    if (dy < -48) onSwipeUp()
+    setDy(0)
+  }
   return (
-    <div className="selected">
-      <div className="selected-head">
-        <span className={`task-glyph lg u-${t.urgency >= 0.75 ? 'urgent' : t.urgency >= 0.5 ? 'soon' : 'routine'}`} aria-hidden><K.icon size={24} /></span>
-        <div className="grow">
-          <div className="eyebrow">{K.label} · reported {ago(t.created_at, now)}</div>
-          <h2 className="title-l">{t.title}</h2>
-        </div>
-        {onClose && <IconButton icon={X} label="Back to best match" onClick={onClose} />}
-      </div>
-      <div className="selected-facts">
-        <UrgencyChip urgency={t.urgency} solid />
-        {dist != null && <span className="fact num"><b>{miles(dist)}</b> straight line</span>}
-        {mine && assignment && <span className="fact num"><b>{minutes(assignment.eta_s)}</b> by road</span>}
-      </div>
-      {gaps.length === 0
-        ? <p className="fit-line is-yes">{lines.length ? 'You meet every requirement' : 'No special requirements'}{t.requirements?.supplies?.length ? `. Bring: ${t.requirements.supplies.join(', ')}` : ''}.</p>
-        : <p className="fit-line is-no">You are missing: {gaps.map((g) => g.label.toLowerCase()).join(', ')}.</p>}
-      <Button variant="primary" size="lg" block icon={ArrowRight} onClick={() => nav(mine && assignment?.status === 'ACCEPTED' ? '/active' : `/task/${t.id}`)}>
-        {mine ? (assignment?.status === 'ACCEPTED' ? 'Resume navigation' : 'Review offer') : 'Details'}
-      </Button>
-    </div>
+    <section ref={el} className={`island${dy ? ' is-dragging' : ''}`} aria-label="Best match"
+      style={{ transform: dy ? `translateY(${dy * 0.35}px)` : undefined }}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      <button className="sheet-handle" aria-label="Show all requests" onClick={onSwipeUp} />
+      {children}
+    </section>
   )
 }
 
