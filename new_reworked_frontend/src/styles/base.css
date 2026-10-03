@@ -1,0 +1,45 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--t-16);
+  line-height: 1.5;
+  color: var(--ink);
+  background: #DDE2E7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+button:disabled { cursor: not-allowed; }
+a { color: var(--route); }
+img { max-width: 100%; display: block; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+:focus { outline: none; }
+:focus-visible { box-shadow: var(--focus); border-radius: var(--r-control); }
+
+.num { font-family: var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.mono { font-family: var(--font-mono); font-size: 0.9em; letter-spacing: 0; }
+.grow { flex: 1; min-width: 0; }
+.center { text-align: center; }
+.muted { color: var(--ink-2); }
+.sub { display: block; color: var(--ink-3); font-size: var(--t-14); line-height: 1.4; font-weight: 400; }
+.hint { font-size: var(--t-14); color: var(--ink-3); line-height: 1.45; }
+.row { display: flex; gap: var(--s-2); align-items: center; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Type roles */
+.display-xl { font-family: var(--font-display); font-weight: 700; font-size: var(--t-44); line-height: 1.0; letter-spacing: -0.005em; }
+.display-l { font-family: var(--font-display); font-weight: 700; font-size: var(--t-28); line-height: 1.08; }
+.title-l { font-family: var(--font-display); font-weight: 600; font-size: 22px; line-height: 1.15; }
+.eyebrow { font-family: var(--font-display); font-weight: 600; font-size: var(--t-14); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.lede { font-size: var(--t-16); color: var(--ink-2); line-height: 1.5; }
+.body-text { font-size: var(--t-16); line-height: 1.55; max-width: 65ch; }
+.section-title { font-family: var(--font-display); font-weight: 700; font-size: var(--t-14); text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-2); margin-bottom: var(--s-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

@@ -4,27 +4,28 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { get, mins, SOURCES, vehicleDesc, type Candidate, type State } from './api'
 
-const STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+const STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 export const STATUS_COLOR: Record<string, string> = {
-  NONE: '#64748b', OPEN: '#f5a524', ASSIGNED: '#4c8dff', EN_ROUTE: '#22d3ee', BLOCKED: '#ef4444',
-  COMPLETED: '#22c55e',
+  // Fieldline color roles: caution = needs a volunteer, route blue = offered/en route, danger = blocked, done = completed.
+  NONE: '#8A96A3', OPEN: '#E8740C', ASSIGNED: '#6C93D6', EN_ROUTE: '#1D5FBF', BLOCKED: '#C42B1C',
+  COMPLETED: '#1E7A46',
 }
 
 export type LayerId = 'incidents' | 'social' | 'ngo' | 'resident' | 'radio' | 'roads' | 'weather' | 'gauges' | 'vulnerability' | 'volunteers' | 'risk' | 'landslides' | 'debris'
 export const LAYERS: { id: LayerId; label: string; color: string; kind: 'dot' | 'bar' | 'area'; group: string; sources?: string[] }[] = [
-  { id: 'incidents', label: 'Incidents (AI-synthesized)', color: '#f5a524', kind: 'dot', group: 'Operational picture' },
-  { id: 'volunteers', label: 'Volunteers', color: '#34d399', kind: 'dot', group: 'Operational picture' },
+  { id: 'incidents', label: 'Incidents (AI-synthesized)', color: '#E8740C', kind: 'dot', group: 'Operational picture' },
+  { id: 'volunteers', label: 'Volunteers', color: '#1E7A46', kind: 'dot', group: 'Operational picture' },
   { id: 'social', label: 'Social media posts', color: SOURCES.social.color, kind: 'dot', group: 'Incoming reports', sources: ['social'] },
   { id: 'ngo', label: 'NGO & shelter requests', color: SOURCES.ngo.color, kind: 'dot', group: 'Incoming reports', sources: ['ngo', 'shelter'] },
   { id: 'resident', label: 'SMS / hotline', color: SOURCES.resident.color, kind: 'dot', group: 'Incoming reports', sources: ['resident', 'volunteer'] },
   { id: 'radio', label: 'Public-safety radio', color: SOURCES.radio.color, kind: 'dot', group: 'Incoming reports', sources: ['radio'] },
-  { id: 'roads', label: 'Road closures (NCDOT + radio)', color: '#ef4444', kind: 'bar', group: 'Conditions' },
-  { id: 'weather', label: 'Helene track (NHC)', color: '#a855f7', kind: 'bar', group: 'Conditions' },
-  { id: 'gauges', label: 'River gauges (USGS)', color: '#60a5fa', kind: 'dot', group: 'Conditions' },
+  { id: 'roads', label: 'Road closures (NCDOT + radio)', color: '#E8740C', kind: 'bar', group: 'Conditions' },
+  { id: 'weather', label: 'Helene track (NHC)', color: '#5F6B78', kind: 'bar', group: 'Conditions' },
+  { id: 'gauges', label: 'River gauges (USGS)', color: '#5B8FC9', kind: 'dot', group: 'Conditions' },
   { id: 'risk', label: 'Live risk surface (rain × terrain × SVI)', color: '#f43f5e', kind: 'area', group: 'Risk & hazards' },
-  { id: 'landslides', label: 'Helene landslides (USGS)', color: '#fb923c', kind: 'dot', group: 'Risk & hazards' },
+  { id: 'landslides', label: 'Helene landslides (USGS)', color: '#9A4600', kind: 'dot', group: 'Risk & hazards' },
   { id: 'debris', label: 'Debris-flow zones (NC DEQ)', color: '#e69500', kind: 'area', group: 'Risk & hazards' },
-  { id: 'vulnerability', label: 'Social vulnerability (CDC SVI)', color: '#6d4aa8', kind: 'area', group: 'Risk & hazards' },
+  { id: 'vulnerability', label: 'Social vulnerability (CDC SVI)', color: '#17324D', kind: 'area', group: 'Risk & hazards' },
 ]
 const OBS_LAYER_OF: Record<string, LayerId> = Object.fromEntries(LAYERS.flatMap((l) => (l.sources ?? []).map((s) => [s, l.id])))
 
@@ -38,7 +39,7 @@ const LAYER_MAP: Record<LayerId, string[]> = {
   incidents: ['incidents', 'incident-labels'],
   volunteers: ['volunteers'],
   social: ['obs-social'], ngo: ['obs-ngo'], resident: ['obs-resident'], radio: ['obs-radio'],
-  roads: ['closures'],
+  roads: ['closures-casing', 'closures'],
   weather: ['storm-line', 'storm-points', 'storm-labels'],
   gauges: ['sensors', 'sensor-labels'],
   vulnerability: ['tracts-fill', 'tracts-line'],
@@ -85,32 +86,33 @@ export default function CommandMap(props: Props) {
 
       // ---- context ----
       m.addLayer({ id: 'tracts-fill', type: 'fill', source: 'tracts', paint: {
-        'fill-color': ['interpolate', ['linear'], ['coalesce', ['get', 'svi'], 0], 0, '#0b1220', 1, '#7c3aed'], 'fill-opacity': 0.5 } })
-      m.addLayer({ id: 'tracts-line', type: 'line', source: 'tracts', paint: { 'line-color': '#334155', 'line-width': 0.4 } })
+        'fill-color': ['interpolate', ['linear'], ['coalesce', ['get', 'svi'], 0], 0, '#FFFFFF', 1, '#17324D'], 'fill-opacity': 0.4 } })
+      m.addLayer({ id: 'tracts-line', type: 'line', source: 'tracts', paint: { 'line-color': '#B9C2CB', 'line-width': 0.4 } })
       m.addLayer({ id: 'storm-line', type: 'line', source: 'storm', filter: ['==', '$type', 'LineString'],
-        paint: { 'line-color': '#a855f7', 'line-width': 3, 'line-dasharray': [2, 1.5], 'line-opacity': 0.85 } })
+        paint: { 'line-color': '#5F6B78', 'line-width': 2.5, 'line-dasharray': [2, 1.5], 'line-opacity': 0.85 } })
       m.addLayer({ id: 'storm-points', type: 'circle', source: 'storm', filter: ['==', '$type', 'Point'],
-        paint: { 'circle-radius': 5, 'circle-color': '#a855f7', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } })
+        paint: { 'circle-radius': 5, 'circle-color': '#5F6B78', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } })
       m.addLayer({ id: 'storm-labels', type: 'symbol', source: 'storm', filter: ['==', '$type', 'Point'], layout: {
         'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0.8, 0], 'text-anchor': 'left' },
-        paint: { 'text-color': '#d8b4fe', 'text-halo-color': '#000', 'text-halo-width': 1 } })
+        paint: { 'text-color': '#45525F', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } })
       m.addLayer({ id: 'landslides', type: 'circle', source: 'landslides', paint: {
-        'circle-radius': 3.5, 'circle-color': ['case', ['==', ['get', 'flagged'], true], '#fb923c', '#a16207'],
-        'circle-stroke-color': '#0b0f17', 'circle-stroke-width': 1 } })
-      m.addLayer({ id: 'closures', type: 'line', source: 'closures', paint: { 'line-color': '#ef4444', 'line-width': 3.5, 'line-opacity': 0.9 } })
+        'circle-radius': 3.5, 'circle-color': ['case', ['==', ['get', 'flagged'], true], '#E8740C', '#B98A5E'],
+        'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } })
+      m.addLayer({ id: 'closures-casing', type: 'line', source: 'closures', paint: { 'line-color': '#fff', 'line-width': 7 } })
+      m.addLayer({ id: 'closures', type: 'line', source: 'closures', paint: { 'line-color': '#E8740C', 'line-width': 4, 'line-dasharray': [1.4, 0.7] } })
       m.addLayer({ id: 'sensors', type: 'circle', source: 'sensors', paint: {
-        'circle-radius': 8, 'circle-color': ['case', ['>=', ['get', 'stage_ft'], ['get', 'flood_stage_ft']], '#2563eb', '#1e3a5f'],
-        'circle-stroke-color': '#93c5fd', 'circle-stroke-width': 2 } })
+        'circle-radius': 8, 'circle-color': ['case', ['>=', ['get', 'stage_ft'], ['get', 'flood_stage_ft']], '#2D5F95', '#FFFFFF'],
+        'circle-stroke-color': '#2D5F95', 'circle-stroke-width': 2 } })
       m.addLayer({ id: 'sensor-labels', type: 'symbol', source: 'sensors', layout: {
         'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0, 1.5], 'text-anchor': 'top' },
-        paint: { 'text-color': '#93c5fd', 'text-halo-color': '#000', 'text-halo-width': 1 } })
+        paint: { 'text-color': '#2D5F95', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } })
 
       // ---- incoming reports: one layer per source family; `sel` = belongs to selected incident (always shown) ----
       m.addLayer({ id: 'evidence', type: 'line', source: 'evidence',
         paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-dasharray': [2, 2], 'line-opacity': 0.9 } })
       for (const l of LAYERS.filter((x) => x.sources)) {
         m.addLayer({ id: `obs-${l.id}`, type: 'circle', source: 'observations', filter: ['==', ['get', 'layer'], l.id], paint: {
-          'circle-radius': 5.5, 'circle-color': l.color, 'circle-stroke-color': '#0b0f17', 'circle-stroke-width': 1.5 } })
+          'circle-radius': 5.5, 'circle-color': l.color, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } })
       }
       m.addSource('evidence-pts', { type: 'geojson', data: fc([]) })
       m.addLayer({ id: 'evidence-pts', type: 'circle', source: 'evidence-pts', paint: {
@@ -120,31 +122,31 @@ export default function CommandMap(props: Props) {
       m.addLayer({ id: 'incidents', type: 'circle', source: 'incidents', paint: {
         'circle-radius': ['case', ['get', 'selected'], 15, ['interpolate', ['linear'], ['get', 'priority'], 0, 7, 100, 12]],
         'circle-color': ['get', 'color'], 'circle-opacity': ['case', ['get', 'dim'], 0.35, 0.95],
-        'circle-stroke-color': ['case', ['get', 'selected'], '#fff', '#0b0f17'], 'circle-stroke-width': ['case', ['get', 'selected'], 3, 2] } })
+        'circle-stroke-color': ['case', ['get', 'selected'], '#14212E', '#fff'], 'circle-stroke-width': ['case', ['get', 'selected'], 3, 2] } })
       m.addLayer({ id: 'incident-labels', type: 'symbol', source: 'incidents', minzoom: 11, layout: {
         'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0, 1.5], 'text-anchor': 'top', 'text-max-width': 14 },
-        paint: { 'text-color': '#fde68a', 'text-halo-color': '#000', 'text-halo-width': 1.2, 'text-opacity': ['case', ['get', 'dim'], 0.4, 1] } })
+        paint: { 'text-color': '#14212E', 'text-halo-color': '#fff', 'text-halo-width': 1.6, 'text-opacity': ['case', ['get', 'dim'], 0.4, 1] } })
 
       // ---- volunteers (ambient layer) ----
       m.addLayer({ id: 'volunteers', type: 'circle', source: 'volunteers', paint: {
-        'circle-radius': 5, 'circle-color': '#34d399', 'circle-opacity': 0.8, 'circle-stroke-color': '#0b0f17', 'circle-stroke-width': 1.5 } })
+        'circle-radius': 5, 'circle-color': '#1E7A46', 'circle-opacity': 0.9, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } })
 
       // ---- dispatch story: spokes, route, candidates ----
       m.addLayer({ id: 'spokes', type: 'line', source: 'spokes', paint: {
         'line-color': ['get', 'color'], 'line-width': ['get', 'width'], 'line-dasharray': [1.5, 1.5], 'line-opacity': 0.8 } })
       m.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-        'line-color': ['match', ['get', 'status'], 'OFFERED', '#4c8dff', '#22d3ee'], 'line-width': 5,
+        'line-color': ['match', ['get', 'status'], 'OFFERED', '#6C93D6', '#1D5FBF'], 'line-width': 5,
         'line-opacity': ['match', ['get', 'status'], 'OFFERED', 0.55, 0.9] } })
       m.addLayer({ id: 'candidates-halo', type: 'circle', source: 'candidates', filter: ['==', ['get', 'role'], 'chosen'], paint: {
-        'circle-radius': 18, 'circle-color': '#22c55e', 'circle-opacity': 0.25 } })
+        'circle-radius': 18, 'circle-color': '#1E7A46', 'circle-opacity': 0.2 } })
       m.addLayer({ id: 'candidates', type: 'circle', source: 'candidates', paint: {
         'circle-radius': ['match', ['get', 'role'], 'chosen', 10, 'alternative', 8, 'scan', 8, 'far', 4, 6],
-        'circle-color': ['match', ['get', 'role'], 'chosen', '#22c55e', 'alternative', '#4c8dff', 'scan', '#e5e7eb', '#475569'],
+        'circle-color': ['match', ['get', 'role'], 'chosen', '#1E7A46', 'alternative', '#1D5FBF', 'scan', '#8A96A3', '#B9C2CB'],
         'circle-stroke-color': '#fff', 'circle-stroke-width': ['match', ['get', 'role'], 'chosen', 3, 1.5] } })
       m.addLayer({ id: 'candidate-labels', type: 'symbol', source: 'candidates', layout: {
         'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-allow-overlap': false },
-        paint: { 'text-color': ['match', ['get', 'role'], 'chosen', '#86efac', 'alternative', '#93c5fd', '#94a3b8'],
-          'text-halo-color': '#000', 'text-halo-width': 1.2 } })
+        paint: { 'text-color': ['match', ['get', 'role'], 'chosen', '#1E7A46', 'alternative', '#154A96', '#5F6B78'],
+          'text-halo-color': '#fff', 'text-halo-width': 1.6 } })
 
       // ---- interaction ----
       for (const l of ['incidents', 'candidates', 'volunteers', 'evidence-pts', ...LAYERS.filter((x) => x.sources).map((x) => `obs-${x.id}`), 'sensors', 'closures', 'storm-points', 'tracts-fill', 'risk-fill', 'landslides']) {
@@ -160,15 +162,15 @@ export default function CommandMap(props: Props) {
       popup('candidates', (p) => profileHtml(JSON.parse(p.json)))
       popup('volunteers', (p) => profileHtml(JSON.parse(p.json)))
       const obsHtml = (p: any) => {
-        const s = SOURCES[p.source_type] ?? { icon: '•', label: p.source_type }
-        return `<div class="pop-src">${s.icon} ${esc(s.label)}${p.reporter ? ` · ${esc(p.reporter)}` : ''}</div>
+        const s = SOURCES[p.source_type] ?? { label: p.source_type, color: '#8A96A3' }
+        return `<div class="pop-src"><i class="pop-swatch" style="background:${s.color}"></i>${esc(s.label)}${p.reporter ? ` · ${esc(p.reporter)}` : ''}</div>
           <div class="pop-text">${esc(p.text || p.summary)}</div>
-          ${p.text && p.summary ? `<div class="pop-ai">🧠 ${esc(p.summary)}</div>` : ''}`
+          ${p.text && p.summary ? `<div class="pop-ai">AI reading: ${esc(p.summary)}</div>` : ''}`
       }
       popup('evidence-pts', obsHtml)
       for (const l of LAYERS.filter((x) => x.sources)) popup(`obs-${l.id}`, obsHtml)
-      popup('sensors', (p) => `<b>🌊 ${esc(p.name)}</b><br/>stage ${esc(p.label)} (NWS flood stage ${p.flood_stage_ft} ft)`)
-      popup('closures', (p) => `<b>⛔ ${esc(p.name ?? 'Road')}</b><br/>${esc(p.closed_reason)}`)
+      popup('sensors', (p) => `<b>${esc(p.name)}</b><br/>stage ${esc(p.label)} (NWS flood stage ${p.flood_stage_ft} ft)`)
+      popup('closures', (p) => `<b>Closed: ${esc(p.name ?? 'Road')}</b><br/>${esc(p.closed_reason)}`)
       popup('storm-points', (p) => `<b>Helene</b> · ${esc(p.label)}<br/>${p.wind_kt} kt winds`)
       popup('tracts-fill', (p) => {
         const t = p.svi_themes ? JSON.parse(p.svi_themes) : {}
@@ -225,8 +227,8 @@ export default function CommandMap(props: Props) {
     const obs = s.observations.filter((o) => o.point && OBS_LAYER_OF[o.source_type])
     set('observations', fc(obs.filter((o) => !sel || o.incident_id !== sel.id).map((o) => ({ type: 'Feature', geometry: o.point, properties: { ...o, layer: OBS_LAYER_OF[o.source_type] } }))))
     const mine = sel ? s.observations.filter((o) => o.point && o.incident_id === sel.id) : []
-    set('evidence-pts', fc(mine.map((o) => ({ type: 'Feature', geometry: o.point, properties: { ...o, color: SOURCES[o.source_type]?.color ?? '#9ca3af' } }))))
-    set('evidence', fc(mine.map((o) => line(o.point!.coordinates, [sel!.lon, sel!.lat], { color: SOURCES[o.source_type]?.color ?? '#9ca3af' }))))
+    set('evidence-pts', fc(mine.map((o) => ({ type: 'Feature', geometry: o.point, properties: { ...o, color: SOURCES[o.source_type]?.color ?? '#8A96A3' } }))))
+    set('evidence', fc(mine.map((o) => line(o.point!.coordinates, [sel!.lon, sel!.lat], { color: SOURCES[o.source_type]?.color ?? '#8A96A3' }))))
 
     set('incidents', fc(s.incidents.map((i) => {
       const t = taskOf.get(i.id)
@@ -265,7 +267,7 @@ export default function CommandMap(props: Props) {
     const story = s.assignments.filter((a) => a.task_id === p.storyTaskId && a.route).slice(-1)
     const showRoute = p.stage >= 4 && story.length > 0 && ['OFFERED', 'ACCEPTED', 'DONE'].includes(story[0].status)
     set('spokes', fc(sel && p.stage > 0 && p.stage < 4 ? cfeat.filter((f) => !['out', 'far'].includes(f.properties.role)).map((f) =>
-      line(f.geometry.coordinates, [sel.lon, sel.lat], { color: f.properties.role === 'alternative' ? '#4c8dff' : '#94a3b8', width: 1.2 })) : []))
+      line(f.geometry.coordinates, [sel.lon, sel.lat], { color: f.properties.role === 'alternative' ? '#1D5FBF' : '#8A96A3', width: 1.2 })) : []))
     set('route', fc(showRoute ? [{ type: 'Feature', geometry: story[0].route, properties: { status: story[0].status } }] : []))
   }
 

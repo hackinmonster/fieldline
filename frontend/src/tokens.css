@@ -1,0 +1,49 @@
+/* Shared with new_reworked_frontend/src/styles/tokens.css (Fieldline). Keep the two in sync. */
+:root {
+  /* Type */
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --t-12: 12px; --t-14: 14px; --t-16: 16px; --t-20: 20px; --t-28: 28px; --t-44: 44px; --t-64: 64px;
+
+  /* Color, by role */
+  --ink: #14212E;
+  --ink-2: #45525F;
+  --ink-3: #5F6B78;
+  --canvas: #F3F5F7;
+  --surface: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.9);
+  --line: #DCE1E6;
+  --line-strong: #B9C2CB;
+
+  --route: #1D5FBF;
+  --route-ink: #154A96;
+  --route-wash: #E7EFFA;
+
+  --caution: #E8740C;
+  --caution-ink: #9A4600;
+  --caution-wash: #FDF1E4;
+
+  --danger: #C42B1C;
+  --danger-wash: #FBEAE8;
+
+  --done: #1E7A46;
+  --done-wash: #E4F2E9;
+
+  --water: #5B8FC9;
+  --idle: #8A96A3;
+
+  /* Spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-6: 24px; --s-8: 32px; --s-12: 48px;
+
+  /* Radius, scaled to element size */
+  --r-tag: 4px; --r-control: 8px; --r-card: 12px; --r-sheet: 20px;
+
+  /* Elevation */
+  --lift-1: 0 1px 2px rgba(20, 33, 46, 0.14), 0 3px 10px rgba(20, 33, 46, 0.10);
+  --lift-2: 0 -1px 0 rgba(20, 33, 46, 0.06), 0 -8px 28px rgba(20, 33, 46, 0.14);
+
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--route);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --tabbar-h: 64px;
+}
