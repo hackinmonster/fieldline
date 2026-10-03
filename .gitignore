@@ -8,3 +8,5 @@ frontend/dist/
 __pycache__/
 .diag.txt
 *.log
+*.log
+backend/data/geocode_cache.json.bak

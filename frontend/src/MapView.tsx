@@ -22,9 +22,10 @@ type Props = {
   focusVolunteerId?: number
   showContext?: boolean
   compact?: boolean
+  ghostRoute?: GeoJSON.LineString | null   // route abandoned by the latest reroute
 }
 
-export default function MapView({ state, onSelectTask, focusVolunteerId, showContext = true, compact }: Props) {
+export default function MapView({ state, onSelectTask, focusVolunteerId, showContext = true, compact, ghostRoute }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const ready = useRef(false)
@@ -37,7 +38,7 @@ export default function MapView({ state, onSelectTask, focusVolunteerId, showCon
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left')
     m.on('load', async () => {
       const empty = fc([])
-      for (const id of ['tracts', 'storm', 'closures', 'observations', 'incidents', 'routes', 'tasks', 'volunteers', 'sensors'])
+      for (const id of ['tracts', 'storm', 'closures', 'observations', 'incidents', 'ghost', 'routes', 'tasks', 'volunteers', 'sensors'])
         m.addSource(id, { type: 'geojson', data: empty })
 
       if (showContext) {
@@ -48,6 +49,8 @@ export default function MapView({ state, onSelectTask, focusVolunteerId, showCon
           paint: { 'line-color': '#a855f7', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.6 } })
       }
       m.addLayer({ id: 'closures', type: 'line', source: 'closures', paint: { 'line-color': '#ef4444', 'line-width': 4, 'line-opacity': 0.9 } })
+      m.addLayer({ id: 'ghost', type: 'line', source: 'ghost',
+        paint: { 'line-color': '#f87171', 'line-width': 3, 'line-dasharray': [1.5, 1.5], 'line-opacity': 0.8 } })
       m.addLayer({ id: 'routes-old', type: 'line', source: 'routes', filter: ['in', ['get', 'status'], ['literal', ['SUPERSEDED', 'RELEASED']]],
         paint: { 'line-color': '#94a3b8', 'line-width': 2, 'line-dasharray': [1, 2], 'line-opacity': 0.6 } })
       m.addLayer({ id: 'routes', type: 'line', source: 'routes', filter: ['in', ['get', 'status'], ['literal', ['OFFERED', 'ACCEPTED']]],
@@ -122,12 +125,30 @@ export default function MapView({ state, onSelectTask, focusVolunteerId, showCon
 
   useEffect(render, [state, focusVolunteerId])
 
-  // Follow the focused volunteer (volunteer app).
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready.current) return
+    ;(m.getSource('ghost') as GeoJSONSource)?.setData(fc(ghostRoute ? [{ type: 'Feature', geometry: ghostRoute, properties: {} }] : []))
+  }, [ghostRoute])
+
+  // Volunteer app: frame the active route when it appears/changes; otherwise follow the volunteer.
+  const framed = useRef<string>('')
   useEffect(() => {
     if (focusVolunteerId == null || !state || !map.current) return
+    const a = state.assignments.find((x) => x.volunteer_id === focusVolunteerId && ['OFFERED', 'ACCEPTED'].includes(x.status))
+    const coords = a?.route?.coordinates
+    if (coords?.length) {
+      const sig = `${a!.id}:${coords.length}`
+      if (framed.current !== sig) {
+        framed.current = sig
+        const b = coords.reduce((bb, c) => bb.extend(c as [number, number]), new maplibregl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number]))
+        map.current.fitBounds(b, { padding: 40, duration: 800 })
+      }
+      return
+    }
     const v = state.volunteers.find((x) => x.id === focusVolunteerId)
     if (v?.lon != null) map.current.easeTo({ center: [v.lon, v.lat], duration: 600 })
-  }, [state?.volunteers, focusVolunteerId])
+  }, [state?.volunteers, state?.assignments, focusVolunteerId])
 
   return <div ref={el} className="map" />
 }

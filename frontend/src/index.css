@@ -24,7 +24,7 @@ h1 { font-size: 18px; margin: 0; }
 h2 { font-size: 17px; margin: 6px 0; }
 h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 6px; }
 .sub, .muted { color: var(--muted); font-size: 12px; }
-.map { position: absolute; inset: 0; }
+.map, .map.maplibregl-map { position: absolute; inset: 0; }
 .maplibregl-popup-content { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
 .maplibregl-popup-tip { display: none; }
 

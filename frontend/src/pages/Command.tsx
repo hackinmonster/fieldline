@@ -27,12 +27,13 @@ export default function Command() {
     }
   }, [state])
 
+  const ghost = useMemo(() => state?.activity.find((a) => a.kind === 'reroute' && a.data?.old_route)?.data.old_route ?? null, [state?.activity])
   const feed = (state?.activity ?? []).filter((a) => filter === 'all' || HIGHLIGHT.has(a.kind) || a.kind === 'extract' || a.kind === 'incident_link' || a.kind === 'road')
 
   return (
     <div className="command">
       <div className="map-wrap">
-        <MapView state={state} onSelectTask={setSelected} />
+        <MapView state={state} onSelectTask={setSelected} ghostRoute={ghost} />
         <div className="legend">
           <span><i style={{ background: '#fbbf24' }} />Community report</span>
           <span><i style={{ background: '#f472b6' }} />Radio</span>
@@ -40,6 +41,7 @@ export default function Command() {
           <span><i className="bar" style={{ background: '#ef4444' }} />Closed road</span>
           <span><i style={{ background: '#34d399' }} />Volunteer</span>
           <span><i className="bar" style={{ background: '#22d3ee' }} />Active route</span>
+          {ghost && <span><i className="bar" style={{ background: '#f87171' }} />Abandoned route</span>}
         </div>
       </div>
       <aside className="side">

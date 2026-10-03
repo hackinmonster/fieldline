@@ -69,3 +69,17 @@ for s in fetch_ncdot fetch_usgs load_tiger_acs load_nhc build_graph load_db; do 
 (cd frontend && npm install && npm run dev)            # http://localhost:5173/command , /volunteer?id=1
 backend/.venv/bin/python replay/replayer.py            # press Enter at ⏸ pause points
 ```
+
+## Demo runbook (3–4 min)
+
+1. Start the backend + frontend (above). Open `http://localhost:5173/command` on the projector and `http://localhost:5173/volunteer?id=1` (Jordan) on a phone/narrow window.
+2. `backend/.venv/bin/python replay/replayer.py` — resets state, registers volunteers, fast-forwards Sep 27–29 (real NCDOT closures + USGS flood-stage crossings stream in; the water-rescue radio call is correctly *not* turned into a volunteer task; an unconfirmed slide becomes a VERIFY_CONDITION task).
+3. ⏸ **Resident SMS** → Enter. Watch: extraction → new incident → DELIVER_SUPPLIES task (priority, reasoning) → match to Jordan with skipped volunteers + reasons. A neighbor's report then ATTACHES to the same incident.
+4. On the phone: **Accept**. Jordan starts driving (simulated GPS).
+5. ⏸ **Radio: Riverwood Rd bridge washed out** → Enter (while Jordan is still on Tunnel Rd / US-70). Watch: radio decoded → bridge segments closed → route conflict detected → AI keeps Jordan and reroutes via Warren Wilson Rd (dashed red = abandoned route).
+6. When Jordan arrives: upload a photo + note → GPS + vision verification → **VERIFIED** → incident RESOLVED.
+   - `replay/photos/delivery_ok.jpg` / `delivery_bad.jpg` are **AI-generated staged photos (DEMO-STUB)** for rehearsal; use a real photo if you can.
+
+### Checks
+- `replay/e2e_check.py` — plays the presenter against `replayer.py --no-pause` (accept, bad photo → REJECTED, good photo → VERIFIED).
+- `replay/ladder_check.py` — **resets the DB**; uses inputs not in the scenario to exercise REASSIGN (volunteer trapped by a washout), ESCALATE (no one can reach a household), and recovery when a reopening is radioed in.
