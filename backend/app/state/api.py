@@ -156,11 +156,17 @@ class Done(BaseModel):
 
 @router.post("/assignments/{aid}/complete")
 async def complete(aid: int, d: Done | None = None):
-    """Volunteer marks the mission done. Volunteers are unpaid neighbors: we take their word for it
-    (GPS already showed them on scene), no photo proof."""
+    """Volunteer marks the mission done. Volunteers are unpaid neighbors: we take their word for it,
+    no photo proof. The one check: their last GPS fix must be within ARRIVE_RADIUS_M of the task."""
     a = await T.get_assignment(aid)
     if not a or a["status"] != "ACCEPTED":
         raise HTTPException(409, "assignment must be accepted first")
+    dist = await db.fetchval(
+        """SELECT ST_Distance(v.last_geom::geography, t.geom::geography)
+           FROM volunteers v, tasks t WHERE v.id=%s AND t.id=%s""", a["volunteer_id"], a["task_id"])
+    if dist is None or dist > ARRIVE_RADIUS_M:
+        where = "no GPS fix" if dist is None else f"{dist:.0f} m away"
+        raise HTTPException(409, f"location check failed: {where}, must be within {ARRIVE_RADIUS_M} m of the task")
     note = (d.note if d else "").strip()
     task = await T.get_task(a["task_id"])
     name = await db.fetchval("SELECT name FROM volunteers WHERE id=%s", a["volunteer_id"])
