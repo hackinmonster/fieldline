@@ -202,3 +202,10 @@ button.big, a.big { padding: 12px; font-size: 15px; width: 100%; }
   .phone { width: 100%; height: 100vh; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
   .notch, .phone-caption { display: none; }
 }
+
+/* Risk surface legend */
+.risk-legend { position: absolute; right: 12px; top: 12px; width: 280px; background: rgba(17,24,39,.94); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+.risk-legend-title { font-weight: 600; }
+.risk-ramp { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #fde68a, #fb923c, #f43f5e, #9f1239); }
+.risk-ramp-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: -4px; }
+.risk-valid { border-top: 1px solid var(--line); padding-top: 6px; line-height: 1.4; }

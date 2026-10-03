@@ -60,6 +60,26 @@ We are explicit about what generalizes and what exists only for the demo.
 | NHC best track AL092024 | `backend/data/helene_track.geojson` | Map context only |
 | OpenStreetMap drive network | `backend/data/buncombe_drive.graphml` | via OSMnx; mirrored into PostGIS `road_segments` |
 
+## Live risk surface (REAL)
+
+`backend/scripts/load_risk.py` pulls every input from public APIs **straight into PostGIS** — no data files on disk:
+
+| Input | API | Used as |
+|---|---|---|
+| CDC/ATSDR Social Vulnerability Index 2022 (tract) | ArcGIS FeatureServer | vulnerability (also replaces the ACS shares in task priority) |
+| USGS 3DEP elevation (30 m) | ImageServer `getSamples` | HAND (height above nearest named stream); cell-scale slope from neighboring hex elevations |
+| USGS NHD named flowlines | National Map MapServer | streams for HAND |
+| NC DEQ channelized debris-flow model | MapServer `export` (image decoded in memory, pixels sampled) | share of each cell in source/transport zones |
+| HRRR hourly precipitation, Sep 25–30 2024 | Open-Meteo historical-forecast API | trailing-72 h rainfall at the sim clock (3 km **model** output, not gauge-observed) |
+| USGS preliminary Helene landslide inventory | ArcGIS FeatureServer | **validation only — never a model input** |
+
+Formula (`backend/app/risk/model.py`), on a 400 m hex grid (4,329 cells), recomputed in SQL for the current sim time:
+`risk = max(flood_hazard, slide_hazard) × (0.6 + 0.4·SVI)`, with `rain = min(1, rain72/250mm)`, `flood_hazard = rain × exp(−HAND/6m)`, `slide_hazard = rain × max(debris_share, min(1, slope/35°))`.
+Task priority now includes the incident's place hazard: `100 × urgency × (0.5 + 0.3·vulnerability + 0.2·hazard)`.
+`GET /risk/validation` checks the **landslide component** against the USGS inventory (never an input): its top-20% cells hold ~41% of mapped landslides (~2.0× chance) at the Sep 28 peak. The flood component is not validated (no comparable flood-extent data loaded).
+
+Known limits: HAND uses *named* NHD streams only (overstates height near unnamed creeks); HRRR is a forecast model at 3 km; SVI is 2022 tract-level; weights are hand-set, transparent constants, not fitted.
+
 ## Run it
 
 ```bash

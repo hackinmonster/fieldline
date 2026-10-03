@@ -189,3 +189,50 @@ CREATE TABLE IF NOT EXISTS activity (
   PRIMARY KEY (id, at)
 );
 SELECT create_hypertable('activity', 'at', if_not_exists => TRUE);
+
+-- ---------- Risk surface inputs (loaded from public APIs by scripts/load_risk.py) ----------
+ALTER TABLE tracts ADD COLUMN IF NOT EXISTS svi double precision;          -- CDC/ATSDR SVI 2022 overall percentile
+ALTER TABLE tracts ADD COLUMN IF NOT EXISTS svi_themes jsonb;              -- per-theme percentiles + a few raw indicators
+
+CREATE TABLE IF NOT EXISTS streams (                                       -- USGS NHD named flowlines
+  id bigserial PRIMARY KEY,
+  name text,
+  geom geometry(MultiLineString, 4326)
+);
+CREATE INDEX IF NOT EXISTS streams_geom_idx ON streams USING gist (geom);
+
+CREATE TABLE IF NOT EXISTS landslides (                                    -- USGS preliminary Helene landslide inventory
+  id bigint PRIMARY KEY,
+  impact text,
+  source text,
+  geom geometry(Point, 4326)
+);
+CREATE INDEX IF NOT EXISTS landslides_geom_idx ON landslides USING gist (geom);
+
+CREATE TABLE IF NOT EXISTS rain_points (                                   -- HRRR grid sample points (via Open-Meteo)
+  id serial PRIMARY KEY,
+  geom geometry(Point, 4326)
+);
+CREATE TABLE IF NOT EXISTS rain_hourly (
+  point_id int NOT NULL,
+  at timestamptz NOT NULL,
+  mm double precision NOT NULL
+);
+SELECT create_hypertable('rain_hourly', 'at', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS rain_hourly_pt_idx ON rain_hourly (point_id, at);
+
+CREATE TABLE IF NOT EXISTS risk_cells (                                    -- hexagonal analysis grid
+  id serial PRIMARY KEY,
+  geom geometry(Polygon, 4326),
+  center geometry(Point, 4326),
+  geojson text,                       -- simplified polygon, precomputed for fast map responses
+  elev_m double precision,            -- USGS 3DEP
+  stream_elev_m double precision,     -- 3DEP at nearest point on nearest named NHD stream
+  hand_m double precision,            -- height above nearest (named) drainage
+  stream_dist_m double precision,
+  slope_deg double precision,         -- from a 3DEP sample stencil
+  debris_frac double precision,       -- share of cell in NC DEQ debris-flow source/path zones
+  svi double precision,
+  rain_weights jsonb                  -- [[rain_point_id, weight], ...] inverse-distance weights
+);
+CREATE INDEX IF NOT EXISTS risk_cells_geom_idx ON risk_cells USING gist (geom);

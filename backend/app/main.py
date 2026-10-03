@@ -11,6 +11,7 @@ from .coordination import routing
 from .demo import runner as demo_runner
 from .demo.api import router as demo_router
 from .ingestion.api import router as ingest_router
+from .risk.api import router as risk_router
 from .intelligence import pipeline
 from .state.api import router as state_router
 
@@ -36,6 +37,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.include_router(ingest_router)
 app.include_router(state_router)
 app.include_router(demo_router)
+app.include_router(risk_router)
 
 
 @app.get("/health")

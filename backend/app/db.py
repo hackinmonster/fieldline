@@ -20,8 +20,10 @@ async def close_pool():
 
 
 async def fetch(sql: str, *args) -> list[dict]:
+    # A single dict argument means named (%(name)s) placeholders.
+    params = args[0] if len(args) == 1 and isinstance(args[0], dict) else (args or None)
     async with pool.connection() as conn:
-        cur = await conn.execute(sql, args or None)
+        cur = await conn.execute(sql, params)
         return await cur.fetchall() if cur.description else []
 
 
