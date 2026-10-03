@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -10,7 +10,7 @@ export const STATUS_COLOR: Record<string, string> = {
   COMPLETED: '#22c55e',
 }
 
-export type LayerId = 'incidents' | 'social' | 'ngo' | 'resident' | 'radio' | 'roads' | 'weather' | 'gauges' | 'vulnerability' | 'volunteers'
+export type LayerId = 'incidents' | 'social' | 'ngo' | 'resident' | 'radio' | 'roads' | 'weather' | 'gauges' | 'vulnerability' | 'volunteers' | 'risk' | 'landslides' | 'debris'
 export const LAYERS: { id: LayerId; label: string; color: string; kind: 'dot' | 'bar' | 'area'; group: string; sources?: string[] }[] = [
   { id: 'incidents', label: 'Incidents (AI-synthesized)', color: '#f5a524', kind: 'dot', group: 'Operational picture' },
   { id: 'volunteers', label: 'Volunteers', color: '#34d399', kind: 'dot', group: 'Operational picture' },
@@ -21,7 +21,10 @@ export const LAYERS: { id: LayerId; label: string; color: string; kind: 'dot' | 
   { id: 'roads', label: 'Road closures (NCDOT + radio)', color: '#ef4444', kind: 'bar', group: 'Conditions' },
   { id: 'weather', label: 'Helene track (NHC)', color: '#a855f7', kind: 'bar', group: 'Conditions' },
   { id: 'gauges', label: 'River gauges (USGS)', color: '#60a5fa', kind: 'dot', group: 'Conditions' },
-  { id: 'vulnerability', label: 'Age 65+ share (Census)', color: '#6d4aa8', kind: 'area', group: 'Conditions' },
+  { id: 'risk', label: 'Live risk surface (rain × terrain × SVI)', color: '#f43f5e', kind: 'area', group: 'Risk & hazards' },
+  { id: 'landslides', label: 'Helene landslides (USGS)', color: '#fb923c', kind: 'dot', group: 'Risk & hazards' },
+  { id: 'debris', label: 'Debris-flow zones (NC DEQ)', color: '#e69500', kind: 'area', group: 'Risk & hazards' },
+  { id: 'vulnerability', label: 'Social vulnerability (CDC SVI)', color: '#6d4aa8', kind: 'area', group: 'Risk & hazards' },
 ]
 const OBS_LAYER_OF: Record<string, LayerId> = Object.fromEntries(LAYERS.flatMap((l) => (l.sources ?? []).map((s) => [s, l.id])))
 
@@ -39,7 +42,15 @@ const LAYER_MAP: Record<LayerId, string[]> = {
   weather: ['storm-line', 'storm-points', 'storm-labels'],
   gauges: ['sensors', 'sensor-labels'],
   vulnerability: ['tracts-fill', 'tracts-line'],
+  risk: ['risk-fill'],
+  landslides: ['landslides'],
+  debris: ['debris-tiles'],
 }
+
+// Agency map services rendered directly as raster tiles — nothing downloaded or stored.
+const arcgisTiles = (exportUrl: string, layers?: string) =>
+  `${exportUrl}?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image${layers ? `&layers=${layers}` : ''}`
+const NC_DEBRIS = arcgisTiles('https://maps.deq.nc.gov/arcgis/rest/services/DEMLR/North_Carolina_Channelized_Debris_Flow_Model/MapServer/export')
 
 type Props = {
   state: State | null
@@ -64,12 +75,17 @@ export default function CommandMap(props: Props) {
     map.current = m
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
     m.on('load', () => {
-      for (const id of ['tracts', 'storm', 'closures', 'observations', 'evidence', 'incidents', 'spokes', 'route', 'volunteers', 'candidates', 'sensors'])
+      for (const id of ['tracts', 'storm', 'closures', 'observations', 'evidence', 'incidents', 'spokes', 'route', 'volunteers', 'candidates', 'sensors', 'risk', 'landslides'])
         m.addSource(id, { type: 'geojson', data: fc([]) })
+      m.addSource('debris-tiles', { type: 'raster', tiles: [NC_DEBRIS], tileSize: 256, attribution: 'NC DEQ' })
+      m.addLayer({ id: 'debris-tiles', type: 'raster', source: 'debris-tiles', paint: { 'raster-opacity': 0.55 } })
+      m.addLayer({ id: 'risk-fill', type: 'fill', source: 'risk', paint: {
+        'fill-color': ['interpolate', ['linear'], ['get', 'risk'], 0.03, '#fde68a', 0.2, '#fb923c', 0.4, '#f43f5e', 0.7, '#9f1239'],
+        'fill-opacity': ['interpolate', ['linear'], ['get', 'risk'], 0.03, 0.15, 0.3, 0.5, 0.7, 0.7], 'fill-outline-color': 'rgba(0,0,0,0)' } })
 
       // ---- context ----
       m.addLayer({ id: 'tracts-fill', type: 'fill', source: 'tracts', paint: {
-        'fill-color': ['interpolate', ['linear'], ['get', 'pct_65plus'], 10, '#0b1220', 35, '#6d4aa8'], 'fill-opacity': 0.45 } })
+        'fill-color': ['interpolate', ['linear'], ['coalesce', ['get', 'svi'], 0], 0, '#0b1220', 1, '#7c3aed'], 'fill-opacity': 0.5 } })
       m.addLayer({ id: 'tracts-line', type: 'line', source: 'tracts', paint: { 'line-color': '#334155', 'line-width': 0.4 } })
       m.addLayer({ id: 'storm-line', type: 'line', source: 'storm', filter: ['==', '$type', 'LineString'],
         paint: { 'line-color': '#a855f7', 'line-width': 3, 'line-dasharray': [2, 1.5], 'line-opacity': 0.85 } })
@@ -78,6 +94,9 @@ export default function CommandMap(props: Props) {
       m.addLayer({ id: 'storm-labels', type: 'symbol', source: 'storm', filter: ['==', '$type', 'Point'], layout: {
         'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0.8, 0], 'text-anchor': 'left' },
         paint: { 'text-color': '#d8b4fe', 'text-halo-color': '#000', 'text-halo-width': 1 } })
+      m.addLayer({ id: 'landslides', type: 'circle', source: 'landslides', paint: {
+        'circle-radius': 3.5, 'circle-color': ['case', ['==', ['get', 'flagged'], true], '#fb923c', '#a16207'],
+        'circle-stroke-color': '#0b0f17', 'circle-stroke-width': 1 } })
       m.addLayer({ id: 'closures', type: 'line', source: 'closures', paint: { 'line-color': '#ef4444', 'line-width': 3.5, 'line-opacity': 0.9 } })
       m.addLayer({ id: 'sensors', type: 'circle', source: 'sensors', paint: {
         'circle-radius': 8, 'circle-color': ['case', ['>=', ['get', 'stage_ft'], ['get', 'flood_stage_ft']], '#2563eb', '#1e3a5f'],
@@ -128,7 +147,7 @@ export default function CommandMap(props: Props) {
           'text-halo-color': '#000', 'text-halo-width': 1.2 } })
 
       // ---- interaction ----
-      for (const l of ['incidents', 'candidates', 'volunteers', 'evidence-pts', ...LAYERS.filter((x) => x.sources).map((x) => `obs-${x.id}`), 'sensors', 'closures', 'storm-points', 'tracts-fill']) {
+      for (const l of ['incidents', 'candidates', 'volunteers', 'evidence-pts', ...LAYERS.filter((x) => x.sources).map((x) => `obs-${x.id}`), 'sensors', 'closures', 'storm-points', 'tracts-fill', 'risk-fill', 'landslides']) {
         m.on('mouseenter', l, () => (m.getCanvas().style.cursor = 'pointer'))
         m.on('mouseleave', l, () => (m.getCanvas().style.cursor = ''))
       }
@@ -151,9 +170,24 @@ export default function CommandMap(props: Props) {
       popup('sensors', (p) => `<b>🌊 ${esc(p.name)}</b><br/>stage ${esc(p.label)} (NWS flood stage ${p.flood_stage_ft} ft)`)
       popup('closures', (p) => `<b>⛔ ${esc(p.name ?? 'Road')}</b><br/>${esc(p.closed_reason)}`)
       popup('storm-points', (p) => `<b>Helene</b> · ${esc(p.label)}<br/>${p.wind_kt} kt winds`)
-      popup('tracts-fill', (p) => `<b>Census tract</b><br/>${(+p.pct_65plus).toFixed(0)}% age 65+ · ${(+p.pct_no_vehicle).toFixed(0)}% no vehicle<br/><span class="muted">feeds task priority</span>`)
+      popup('tracts-fill', (p) => {
+        const t = p.svi_themes ? JSON.parse(p.svi_themes) : {}
+        return `<b>Census tract · SVI ${p.svi != null && p.svi !== 'null' ? (+p.svi).toFixed(2) : 'n/a'}</b><br/>${t.pct_65plus ?? '–'}% age 65+ · ${t.pct_disabled ?? '–'}% disabled · ${t.pct_no_vehicle ?? '–'}% no vehicle<br/><span class="muted">CDC/ATSDR SVI 2022 · feeds task priority</span>`
+      })
+      popup('landslides', (p) => `<b>Landslide (USGS, post-Helene)</b><br/>${esc(p.impact || 'impact not flagged')}<br/><span class="muted">validation only — not a risk input</span>`)
+      m.on('click', 'risk-fill', async (e: MapLayerMouseEvent) => {
+        if (m.queryRenderedFeatures(e.point).some((f) => ['incidents', 'candidates', 'volunteers', 'evidence-pts'].includes(f.layer.id))) return
+        try {
+          const r = await get(`/risk/point?lon=${e.lngLat.lng}&lat=${e.lngLat.lat}`)
+          new maplibregl.Popup({ maxWidth: '320px' }).setLngLat(e.lngLat).setHTML(riskHtml(r)).addTo(m)
+        } catch { /* outside grid */ }
+      })
 
       get('/layers/tracts').then((d) => (m.getSource('tracts') as GeoJSONSource).setData(d))
+      get('/layers/landslides').then((d) => {
+        d.features.forEach((f: any) => { f.properties.flagged = !!f.properties.impact && !/^no/i.test(f.properties.impact) })
+        ;(m.getSource('landslides') as GeoJSONSource).setData(d)
+      })
       get('/layers/storm').then((d) => {
         d.features.forEach((f: any) => {
           const t = new Date(f.properties.at)
@@ -236,6 +270,27 @@ export default function CommandMap(props: Props) {
   }
 
   useEffect(render, [props.state, props.selectedIncidentId, props.candidates, props.stage, props.storyTaskId])
+
+  // Risk surface follows the (simulated) clock: refetch whenever the sim hour changes while the layer is on.
+  const [validation, setValidation] = useState<any>(null)
+  const riskHour = useRef('')
+  const clock = props.state?.clock
+  useEffect(() => {
+    if (!props.layers.risk || !clock) return
+    const base = new Date(clock.sim_now).getTime(), start = performance.now()
+    const tick = () => {
+      const now = new Date(base + (performance.now() - start) * clock.speed)
+      const hour = now.toISOString().slice(0, 13)
+      if (hour === riskHour.current || !map.current || !ready.current) return
+      riskHour.current = hour
+      const at = encodeURIComponent(hour + ':00:00Z')
+      get(`/risk/surface?at=${at}`).then((d) => (map.current?.getSource('risk') as GeoJSONSource)?.setData(d)).catch(() => {})
+      get(`/risk/validation?at=${at}`).then(setValidation).catch(() => {})
+    }
+    tick()
+    const id = window.setInterval(tick, 3000)
+    return () => window.clearInterval(id)
+  }, [props.layers.risk, clock?.sim_now, clock?.speed])
   useEffect(applyVisibility, [props.layers])
 
   // Camera: incident → candidates → route.
@@ -263,7 +318,39 @@ export default function CommandMap(props: Props) {
     m.fitBounds(b, { padding: { top: 80, bottom: 80, left: 300, right: 80 }, maxZoom: 14, duration: 1200 })
   }, [props.state, props.selectedIncidentId, props.stage, props.candidates, props.storyTaskId])
 
-  return <div ref={el} className="map" />
+  return (
+    <>
+      <div ref={el} className="map" />
+      {props.layers.risk && (
+        <div className="risk-legend">
+          <div className="risk-legend-title">Live risk · {riskHour.current ? new Date(riskHour.current + ':00:00Z').toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric' }) : '…'}</div>
+          <div className="risk-ramp" />
+          <div className="risk-ramp-labels"><span>low</span><span>high</span></div>
+          <div className="muted">max(flood, landslide) hazard × CDC SVI · flood = 72 h HRRR rain × height above stream · landslide = rain × max(debris-flow zone, slope)</div>
+          {validation?.landslides > 0 && (
+            <div className="risk-valid">
+              Landslide component check: its top {Math.round(validation.top_share * 100)}% cells contain <b>{Math.round(validation.capture_rate * 100)}%</b> of {validation.landslides} USGS-mapped Helene landslides
+              {' '}(<b>{validation.lift}×</b> chance). Landslides are never a model input.
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+function riskHtml(r: any) {
+  const pct = (x: number) => `${Math.round((x ?? 0) * 100)}%`
+  return `<div class="profile">
+    <div><b>Risk ${r.risk?.toFixed(2)}</b> <span class="muted">· higher than ${pct(r.percentile)} of the county</span></div>
+    <div class="profile-row"><span>72 h rain</span><div>${Math.round(r.rain72_mm)} mm (${(r.rain72_mm / 25.4).toFixed(1)} in) · HRRR</div></div>
+    <div class="profile-row"><span>Above stream</span><div>${r.hand_m != null ? r.hand_m.toFixed(1) + ' m' : '–'} (${r.stream_dist_m != null ? Math.round(r.stream_dist_m) + ' m away' : ''})</div></div>
+    <div class="profile-row"><span>Slope</span><div>${r.slope_deg != null ? r.slope_deg.toFixed(0) + '°' : '–'}</div></div>
+    <div class="profile-row"><span>Debris-flow zone</span><div>${pct(r.debris_f)} of cell</div></div>
+    <div class="profile-row"><span>SVI</span><div>${r.svi != null ? r.svi.toFixed(2) : '–'}</div></div>
+    <div class="profile-row"><span>Flood hazard</span><div>${r.flood_hazard?.toFixed(2)} <span class="muted">= rain ${r.rain_f?.toFixed(2)} × ${r.flood_f?.toFixed(2)}</span></div></div>
+    <div class="profile-row"><span>Landslide hazard</span><div>${r.slide_hazard?.toFixed(2)} <span class="muted">= rain × max(debris ${r.debris_f?.toFixed(2)}, slope ${r.slope_f?.toFixed(2)})</span></div></div>
+  </div>`
 }
 
 function profileHtml(c: any) {

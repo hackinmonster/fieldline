@@ -114,7 +114,7 @@ function LayerPanel({ state, layers, setLayers }: { state: State | null; layers:
     const l = LAYERS.find((x) => x.id === id)!
     if (l.sources) return state.observations.filter((o) => o.point && l.sources!.includes(o.source_type)).length
     return { incidents: state.incidents.length, volunteers: state.volunteers.length, roads: new Set(state.closures.map((c) => c.name)).size,
-      gauges: state.sensors.length, weather: '', vulnerability: '' }[id as string] ?? ''
+      gauges: state.sensors.length, weather: '', vulnerability: '', risk: '', landslides: 640, debris: '' }[id as string] ?? ''
   }
   let group = ''
   return (

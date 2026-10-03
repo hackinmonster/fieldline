@@ -299,7 +299,7 @@ async def sensor_series(site_id: str):
 
 @router.get("/layers/tracts")
 async def tracts_layer():
-    rows = await db.fetch("SELECT geoid, name, pop, pct_65plus, pct_no_vehicle, median_income, "
+    rows = await db.fetch("SELECT geoid, name, pop, pct_65plus, pct_no_vehicle, median_income, svi, svi_themes, "
                           "ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.0005))::json AS g FROM tracts")
     return {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": r.pop("g"), "properties": r} for r in rows]}
