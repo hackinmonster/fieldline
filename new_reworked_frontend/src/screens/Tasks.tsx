@@ -108,7 +108,6 @@ function Factors({ task: t, distance_m }: { task: Task; distance_m: number }) {
   const req = t.requirements ?? {}
   const f = [
     { label: 'Distance', ok: distance_m < 16000, value: miles(distance_m) },
-    { label: 'Vehicle', ok: true, value: req.vehicle ? 'yours' : 'none' },
     { label: 'Skills', ok: true, value: (req.skills ?? []).length ? 'yours' : 'none' },
     { label: 'Gear', ok: true, value: (req.equipment ?? []).length ? 'yours' : 'none' },
     { label: 'Urgency', ok: true, value: t.urgency >= 0.75 ? 'urgent' : t.urgency >= 0.5 ? 'today' : 'when able' },

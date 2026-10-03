@@ -413,7 +413,7 @@
 .card-list { display: flex; flex-direction: column; gap: var(--s-2); }
 .match-item { background: var(--surface); border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
 .match-item .task-card { box-shadow: none; background: transparent; }
-.factors { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
+.factors { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
 .factors li { display: grid; grid-template-columns: auto 1fr; column-gap: 3px; padding: 6px 6px 8px; font-size: 11px; line-height: 1.2; align-items: center; }
 .factors li + li { border-left: 1px solid var(--line); }
 .factors li.ok svg { color: var(--done); }
