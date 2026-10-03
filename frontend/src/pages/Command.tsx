@@ -94,12 +94,12 @@ export default function Command() {
             <img src="/mark.svg" alt="" width={32} height={32} />
             <div>
               <h1>Fieldline Command</h1>
-              <div className="sub">Helene response · Buncombe County, NC</div>
+              <div className="sub">Disaster response</div>
             </div>
           </div>
           <div className="clock">
             <div className="clock-time num">{now ? fmtTime(now) : '—'}</div>
-            <div className="sub">{speed > 1 ? <span className="ff"><FastForward size={13} aria-hidden /> {speed}× while driving</span> : state?.clock.simulated ? 'Replay clock' : 'Live'}</div>
+            <div className="sub">{speed > 1 ? <span className="ff"><FastForward size={13} aria-hidden /> {speed}× while driving</span> : state?.clock.simulated ? 'Demo replay · Hurricane Helene' : 'Live'}</div>
           </div>
         </header>
         <nav className="tabs" role="tablist">
@@ -189,7 +189,7 @@ function Overview({ state, layers, setLayers, onSelect }: { state: State | null;
             )
           })}
           {!Object.keys(d.by_source).length && (
-            <p className="muted empty-note">No data yet. Press <b>Load scenario</b>. It streams real NCDOT closures and USGS gauge readings from Helene, plus community reports, through the live pipeline.</p>
+            <p className="muted empty-note">No data yet. Press <b>Load scenario</b> to replay the demo: Hurricane Helene in Buncombe County, NC (Sep 2024). It streams the real NCDOT closures and USGS gauge readings from that storm, plus community reports, through the live pipeline.</p>
           )}
         </div>
         {(d.phase === 'ingesting' || d.phase === 'loading') && <div className="muted ingest-msg"><Loader2 size={14} className="spin" aria-hidden /> {d.message}</div>}

@@ -1,6 +1,6 @@
 # Fieldline: volunteer app (reworked frontend)
 
-Map-first phone UI for the Helene coordination backend. Design direction, tokens and rules: [`DESIGN.md`](DESIGN.md).
+Map-first phone UI for the disaster-response coordination backend (demo scenario: Hurricane Helene, Buncombe County, NC). Design direction, tokens and rules: [`DESIGN.md`](DESIGN.md).
 
 ```bash
 npm install

@@ -1,9 +1,9 @@
-# Helene Volunteer Coordination
+# Fieldline: Disaster Response Coordination
 
 A real-time coordination system that turns heterogeneous disaster information into **coordinated volunteer action**, demonstrated on the immediate aftermath of Hurricane Helene in Asheville / Buncombe County, NC (Sep 27–30, 2024).
 
 ```
-historical Helene conditions + incoming observations
+historical disaster conditions (demo: Helene) + incoming observations
  → normalized spatiotemporal data (Tiger Cloud: TimescaleDB + PostGIS)
  → AI understanding (OpenAI) → incident / task (code-guarded)
  → geospatial volunteer matching (PostGIS KNN + closure-aware road routing)

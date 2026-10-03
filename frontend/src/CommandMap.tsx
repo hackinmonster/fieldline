@@ -20,10 +20,10 @@ export const LAYERS: { id: LayerId; label: string; color: string; kind: 'dot' | 
   { id: 'resident', label: 'SMS / hotline', color: SOURCES.resident.color, kind: 'dot', group: 'Incoming reports', sources: ['resident', 'volunteer'] },
   { id: 'radio', label: 'Public-safety radio', color: SOURCES.radio.color, kind: 'dot', group: 'Incoming reports', sources: ['radio'] },
   { id: 'roads', label: 'Road closures (NCDOT + radio)', color: '#E8740C', kind: 'bar', group: 'Conditions' },
-  { id: 'weather', label: 'Helene track (NHC)', color: '#5F6B78', kind: 'bar', group: 'Conditions' },
+  { id: 'weather', label: 'Storm track (NHC)', color: '#5F6B78', kind: 'bar', group: 'Conditions' },
   { id: 'gauges', label: 'River gauges (USGS)', color: '#5B8FC9', kind: 'dot', group: 'Conditions' },
   { id: 'risk', label: 'Live risk surface (rain × terrain × SVI)', color: '#f43f5e', kind: 'area', group: 'Risk & hazards' },
-  { id: 'landslides', label: 'Helene landslides (USGS)', color: '#9A4600', kind: 'dot', group: 'Risk & hazards' },
+  { id: 'landslides', label: 'Mapped landslides (USGS)', color: '#9A4600', kind: 'dot', group: 'Risk & hazards' },
   { id: 'debris', label: 'Debris-flow zones (NC DEQ)', color: '#e69500', kind: 'area', group: 'Risk & hazards' },
   { id: 'vulnerability', label: 'Social vulnerability (CDC SVI)', color: '#17324D', kind: 'area', group: 'Risk & hazards' },
 ]
@@ -171,12 +171,12 @@ export default function CommandMap(props: Props) {
       for (const l of LAYERS.filter((x) => x.sources)) popup(`obs-${l.id}`, obsHtml)
       popup('sensors', (p) => `<b>${esc(p.name)}</b><br/>stage ${esc(p.label)} (NWS flood stage ${p.flood_stage_ft} ft)`)
       popup('closures', (p) => `<b>Closed: ${esc(p.name ?? 'Road')}</b><br/>${esc(p.closed_reason)}`)
-      popup('storm-points', (p) => `<b>Helene</b> · ${esc(p.label)}<br/>${p.wind_kt} kt winds`)
+      popup('storm-points', (p) => `<b>Storm track</b> · ${esc(p.label)}<br/>${p.wind_kt} kt winds`)
       popup('tracts-fill', (p) => {
         const t = p.svi_themes ? JSON.parse(p.svi_themes) : {}
         return `<b>Census tract · SVI ${p.svi != null && p.svi !== 'null' ? (+p.svi).toFixed(2) : 'n/a'}</b><br/>${t.pct_65plus ?? '–'}% age 65+ · ${t.pct_disabled ?? '–'}% disabled · ${t.pct_no_vehicle ?? '–'}% no vehicle<br/><span class="muted">CDC/ATSDR SVI 2022 · feeds task priority</span>`
       })
-      popup('landslides', (p) => `<b>Landslide (USGS, post-Helene)</b><br/>${esc(p.impact || 'impact not flagged')}<br/><span class="muted">validation only — not a risk input</span>`)
+      popup('landslides', (p) => `<b>Landslide (USGS inventory)</b><br/>${esc(p.impact || 'impact not flagged')}<br/><span class="muted">validation only — not a risk input</span>`)
       m.on('click', 'risk-fill', async (e: MapLayerMouseEvent) => {
         if (m.queryRenderedFeatures(e.point).some((f) => ['incidents', 'candidates', 'volunteers', 'evidence-pts'].includes(f.layer.id))) return
         try {

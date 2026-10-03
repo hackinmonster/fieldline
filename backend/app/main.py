@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     await db.close_pool()
 
 
-app = FastAPI(title="Helene Volunteer Coordination", lifespan=lifespan)
+app = FastAPI(title="Disaster Response Coordination", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(ingest_router)
 app.include_router(state_router)

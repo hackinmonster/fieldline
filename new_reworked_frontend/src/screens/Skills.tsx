@@ -120,7 +120,7 @@ export default function Skills() {
       <div className="onboard-foot">
         <div className="fit-meter" aria-live="polite">
           <span className="fit-meter-n num">{fit.n}<span> of {fit.of}</span></span>
-          <span className="fit-meter-text">open requests near Swannanoa fit what you selected</span>
+          <span className="fit-meter-text">open requests nearby fit what you selected</span>
           <span className="fit-meter-bar"><span style={{ width: `${fit.of ? (fit.n / fit.of) * 100 : 0}%` }} /></span>
         </div>
         <Button variant="primary" size="lg" block icon={ArrowRight}

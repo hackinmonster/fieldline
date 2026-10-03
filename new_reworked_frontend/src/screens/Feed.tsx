@@ -33,7 +33,7 @@ export default function Feed() {
 
   return (
     <div className="feed">
-      <ScreenHeader title="What people are seeing" sub="Buncombe County · newest first"
+      <ScreenHeader title="What people are seeing" sub="Reports from the response area · newest first"
         right={<Button variant="primary" icon={PenLine} onClick={() => setWriting(true)}>Post</Button>} />
       <div className="tabs-row" role="tablist">
         {TABS.map((t) => (

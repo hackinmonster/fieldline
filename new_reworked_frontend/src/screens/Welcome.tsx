@@ -4,6 +4,10 @@ import { ArrowRight, MessageSquareText, Users } from 'lucide-react'
 import { useStore } from '../lib/store'
 import MapCanvas from '../components/MapCanvas'
 import { Alert, Button } from '../components/ui'
+import { dayTime } from '../lib/format'
+
+/** "French Broad River At Asheville, NC" → "French Broad River" */
+const riverName = (name: string) => name.split(/ at /i)[0]
 
 export default function Welcome() {
   const { snap, mode, profile, setProfile, signInAs } = useStore()
@@ -16,7 +20,10 @@ export default function Welcome() {
   const situation = useMemo(() => {
     if (!snap) return null
     const open = snap.tasks.filter((t) => t.status === 'OPEN' || t.status === 'ASSIGNED').length
-    const gauge = snap.sensors.find((s) => s.site_id === '03451500') ?? snap.sensors[0]
+    // Only gauges still reporting (same 6 h rule the map uses to mark one offline).
+    const now = new Date(snap.clock.sim_now).getTime()
+    const gauge = [...snap.sensors].filter((s) => s.stage_ft != null && s.at && now - new Date(s.at).getTime() <= 6 * 3600e3)
+      .sort((a, b) => (b.stage_ft! - b.flood_stage_ft) - (a.stage_ft! - a.flood_stage_ft))[0]
     return { open, closed: snap.closures.length, gauge }
   }, [snap])
 
@@ -48,7 +55,7 @@ export default function Welcome() {
           <p className="situation num" aria-label="Current situation">
             <span><b>{situation.open}</b> open requests</span>
             <span><b>{situation.closed}</b> roads closed</span>
-            {situation.gauge && <span>French Broad <b>{situation.gauge.stage_ft?.toFixed(1)} ft</b> (flood {situation.gauge.flood_stage_ft})</span>}
+            {situation.gauge && <span>{riverName(situation.gauge.name)} <b>{situation.gauge.stage_ft?.toFixed(1)} ft</b> (flood {situation.gauge.flood_stage_ft})</span>}
           </p>
         )}
 
@@ -97,7 +104,7 @@ export default function Welcome() {
           </button>
         )}
         {mode === 'demo' && stage === 'phone' && (
-          <Alert tone="route" title="Demo data">The backend is not reachable, so this runs on a saved snapshot from Sep 29, 10:12 AM. You will play Jordan Reyes.</Alert>
+          <Alert tone="route" title="Demo data">The backend is not reachable, so this runs on the saved demo scenario: Hurricane Helene, Buncombe County, NC, {snap ? dayTime(snap.clock.sim_now) : 'Sep 29, 2024'}. You will play Jordan Reyes.</Alert>
         )}
       </div>
     </div>
