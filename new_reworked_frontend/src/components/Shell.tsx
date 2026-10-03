@@ -32,7 +32,7 @@ export function StatusBar() {
     <div className="statusbar" aria-hidden>
       <span className="num">{now ? now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/, '') : '9:41'}</span>
       <span className="statusbar-mode">
-        {mode === 'live' ? (socketUp ? 'LIVE' : 'RECONNECTING') : mode === 'demo' ? 'DEMO DATA' : ''}
+        {mode === 'live' ? (socketUp ? 'LIVE' : 'RECONNECTING') : ''}
       </span>
       <span className="statusbar-icons"><i /><i /><i /><b /></span>
     </div>

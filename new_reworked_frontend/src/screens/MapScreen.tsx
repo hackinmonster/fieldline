@@ -152,7 +152,7 @@ export default function MapScreen() {
                 onClick={() => nav(`/task/${shown.id}`)} />
             ) : (
               <p className="island-empty">{snap.demo && snap.demo.phase !== 'ready'
-                ? `Command is still loading the scenario (${snap.demo.message}). Requests appear here when it finishes.`
+                ? 'Command is still loading reports. Requests appear here as soon as they are ready.'
                 : 'No open requests nearby right now. You will get an alert when one fits you.'}</p>
             )}
             <button className="sheet-more" onClick={() => nav('/tasks')}>

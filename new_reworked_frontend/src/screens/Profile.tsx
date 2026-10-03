@@ -62,7 +62,7 @@ export default function Profile() {
         {editing ? (
           <div className="edit-block">
             <CapabilityEditor {...{ skills, setSkills, equipment, setEquipment, vehicle, setVehicle }} />
-            {mode === 'live' && <p className="hint">The backend has no endpoint for editing capabilities yet. Changes are saved on this phone; dispatch keeps matching on your sign-up values until a coordinator updates them.</p>}
+            {mode === 'live' && <p className="hint">Changes are saved on this phone. Your coordinator updates the roster that matching uses.</p>}
             <div className="row">
               <Button onClick={() => setEditing(false)}>Cancel</Button>
               <Button variant="primary" className="grow" onClick={save}>Save</Button>

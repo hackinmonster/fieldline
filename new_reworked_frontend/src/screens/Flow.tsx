@@ -20,7 +20,7 @@ export default function Flow() {
       <header className="flow-head">
         <div className="cap-brand"><img src="/mark.svg" alt="" width={28} height={28} /> Fieldline</div>
         <h1 className="display-l">From sign-up to a finished delivery</h1>
-        <p className="lede">Demo scenario: Hurricane Helene, Sep 29 2024. Jordan Reyes has a pickup truck. A family in Charlotte texts that their parents on Bee Tree Rd have no water. Every frame below is the running app, staged at that step.</p>
+        <p className="lede">Hurricane Helene, Sep 29 2024. Jordan Reyes has a pickup truck. A family in Charlotte texts that their parents on Bee Tree Rd have no water. Every frame below is the running app, staged at that step.</p>
         <nav className="flow-links"><Link to="/map">Open the app</Link><Link to="/kit">Components</Link></nav>
       </header>
 

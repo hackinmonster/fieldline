@@ -40,17 +40,17 @@ function Caption() {
     <>
       <div className="cap-brand"><img src="/mark.svg" alt="" width={28} height={28} /> Fieldline</div>
       <p className="cap-lede">Volunteer app for disaster response.</p>
-      <p className="cap-scenario">Demo scenario: Hurricane Helene, Buncombe County, NC · Sep 29, 2024</p>
-      <p className="cap-mode">{mode === 'live' ? 'Connected to the backend.' : mode === 'demo' ? 'Backend not reachable: running on the bundled demo snapshot (real NCDOT closures and USGS gauges, scripted requests).' : 'Connecting…'}</p>
+      <p className="cap-scenario">Hurricane Helene · Buncombe County, NC · Sep 29, 2024</p>
+      {mode === 'live' && <p className="cap-mode">Connected to Command.</p>}
       {cur && <div className="cap-now"><div className="cap-now-name">{cur.name}</div><p>{cur.note}</p></div>}
       <nav className="cap-nav" aria-label="Jump to screen">
         {SCREENS.map((s) => <Link key={s.path} to={s.path} className={loc.pathname.startsWith(s.path) ? 'is-on' : ''}>{s.name}</Link>)}
         <Link to="/task/10">Task invitation</Link>
         <Link to="/done">Completion</Link>
         <span className="cap-sep" />
-        <a href="/map?scene=offer">Stage: offer arrives</a>
-        <a href="/active?scene=active">Stage: driving</a>
-        <a href="/active?scene=arrived">Stage: at the door</a>
+        <a href="/map?scene=offer">Offer arrives</a>
+        <a href="/active?scene=active">Driving</a>
+        <a href="/active?scene=arrived">At the door</a>
         <span className="cap-sep" />
         <Link to="/flow">User flow</Link>
         <Link to="/kit">Components</Link>

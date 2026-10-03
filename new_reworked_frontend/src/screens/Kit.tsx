@@ -131,7 +131,7 @@ export default function Kit() {
 
       <Group title="Alerts">
         <div className="kit-col">
-          <Alert tone="route" title="Demo data">The backend is not reachable. Showing the saved snapshot.</Alert>
+          <Alert tone="route" title="Offer sent">Jordan Reyes has 21 minutes to drive. You will see when they accept.</Alert>
           <Alert tone="caution" title="Rerouted">Riverwood Rd bridge is washed out. New route adds 4 min.</Alert>
           <Alert tone="caution" title="Not marked done yet">Location check failed: 2300 m away, must be within 200 m of the task.</Alert>
           <Alert tone="done" title="Done">25 m from the address.</Alert>
