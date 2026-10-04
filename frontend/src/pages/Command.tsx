@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle, ArrowDown, ArrowLeft, BrainCircuit, Car, Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardList, Eye,
-  FastForward, Flag, HeartPulse, Link2, ListChecks, Loader2, MapPin, MessageSquareQuote, Navigation, OctagonAlert, Package,
+  Flag, HeartPulse, Link2, ListChecks, Loader2, MapPin, MessageSquareQuote, Navigation, OctagonAlert, Package,
   Play, RefreshCw, RotateCcw, Search, ShieldCheck, Smartphone, Sparkles, Target, TrafficCone, Waves, X, type LucideIcon,
 } from 'lucide-react'
 import CommandMap, { LAYERS, STATUS_COLOR, type LayerId } from '../CommandMap'
@@ -73,7 +73,6 @@ export default function Command() {
 
   const demo = state?.demo
   const loading = demo && (demo.phase === 'loading' || demo.phase === 'ingesting')
-  const speed = state?.clock.speed ?? 1
 
   return (
     <div className="command">
@@ -99,7 +98,7 @@ export default function Command() {
           </div>
           <div className="clock">
             <div className="clock-time num">{now ? fmtTime(now) : '—'}</div>
-            <div className="sub">{speed > 1 ? <span className="ff"><FastForward size={13} aria-hidden /> {speed}× while driving</span> : state?.clock.simulated ? 'Demo replay · Hurricane Helene' : 'Live'}</div>
+            <div className="sub">Hurricane Helene · Buncombe County, NC</div>
           </div>
         </header>
         <nav className="tabs" role="tablist">
@@ -119,12 +118,12 @@ export default function Command() {
           {demo?.phase === 'ready' || demo?.phase === 'error' || demo?.phase === 'idle' ? (
             <>
               <button className="btn" disabled={busy || demo?.phase !== 'ready'} onClick={() => act(async () => { await post('/demo/rewind'); setSel(null) })}>
-                <RotateCcw size={16} aria-hidden /> Rewind demo</button>
+                <RotateCcw size={16} aria-hidden /> Reset dispatches</button>
               <button className="btn" disabled={busy} onClick={() => { if (demo?.phase === 'idle' || confirm('Re-run full ingestion? (about 2–3 min of LLM processing)')) act(() => post('/demo/setup')) }}>
-                {demo?.phase === 'idle' ? <><Play size={16} aria-hidden /> Load scenario</> : <><RefreshCw size={16} aria-hidden /> Reload scenario</>}</button>
+                {demo?.phase === 'idle' ? <><Play size={16} aria-hidden /> Load event data</> : <><RefreshCw size={16} aria-hidden /> Reload event data</>}</button>
               <a className="btn" href={fieldlineUrl(null)} target="fieldline"><Smartphone size={16} aria-hidden /> Volunteer app</a>
             </>
-          ) : <span className="muted">{demo?.message}</span>}
+          ) : <span className="muted">{`Ingesting reports · ${demo?.done ?? 0} of ${demo?.total ?? 0}`}</span>}
           {loading && <div className="progress"><i style={{ width: `${(100 * demo!.done) / Math.max(1, demo!.total)}%` }} /></div>}
         </footer>
       </aside>
@@ -204,10 +203,10 @@ function Overview({ state, layers, setLayers, onSelect }: { state: State | null;
             )
           })}
           {!Object.keys(d.by_source).length && (
-            <p className="muted empty-note">No data yet. Press <b>Load scenario</b> to replay the demo: Hurricane Helene in Buncombe County, NC (Sep 2024). It streams the real NCDOT closures and USGS gauge readings from that storm, plus community reports, through the live pipeline.</p>
+            <p className="muted empty-note">No data yet. Press <b>Load event data</b> to ingest Hurricane Helene in Buncombe County, NC: NCDOT closures, USGS gauge readings and community reports, through the live pipeline.</p>
           )}
         </div>
-        {(d.phase === 'ingesting' || d.phase === 'loading') && <div className="muted ingest-msg"><Loader2 size={14} className="spin" aria-hidden /> {d.message}</div>}
+        {(d.phase === 'ingesting' || d.phase === 'loading') && <div className="muted ingest-msg"><Loader2 size={14} className="spin" aria-hidden /> Reading and linking incoming reports</div>}
       </section>
       <section className="card">
         <div className="step-title"><span className="step-n">2</span> AI synthesis: {state.incidents.length} incidents, {state.tasks.length} volunteer tasks</div>

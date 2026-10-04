@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowUp, ArrowUpLeft, ArrowUpRight, CornerUpLeft, CornerUpRight, Flag, Check, MessageSquareText, TrafficCone, CircleSlash,
-  ChevronUp, ChevronDown, Play, Pause, MapPin, LocateFixed, type LucideIcon,
+  ChevronUp, ChevronDown, MapPin, LocateFixed, type LucideIcon,
 } from 'lucide-react'
 import { ARRIVE_RADIUS_M, useStore } from '../lib/store'
 import MapCanvas from '../components/MapCanvas'
@@ -60,6 +60,12 @@ export default function Active() {
     return { remaining, heading, next, after, toNext, eta, arrived: toDest <= ARRIVE_RADIUS_M, toDest }
   }, [assignment, me, task])
 
+  // Offline there is no backend moving the volunteer, so the phone drives the route itself once accepted.
+  const arrivedNow = !!nav_?.arrived
+  useEffect(() => {
+    if (mode === 'demo' && assignment?.status === 'ACCEPTED' && !arrivedNow && !driving) demoDrive(true)
+  }, [mode, assignment?.id, assignment?.status, arrivedNow]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!snap) return null
   if (!assignment || assignment.status !== 'ACCEPTED' || !task) {
     return (
@@ -102,12 +108,6 @@ export default function Active() {
         <div className="reroute"><TrafficCone size={16} aria-hidden /><span>{reroute}</span></div>
       )}
 
-      {mode === 'demo' && (
-        <button className="demo-drive" onClick={() => demoDrive(!driving)} disabled={nav_?.arrived && !driving}>
-          {driving ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}
-          {driving ? 'Pause drive' : nav_?.arrived ? 'At destination' : 'Demo: drive the route'}
-        </button>
-      )}
 
       <section className={`nav-panel${open ? ' is-open' : ''}`} aria-label="Task details">
         <button className="nav-panel-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>

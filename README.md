@@ -5,7 +5,7 @@ A real-time coordination system that turns heterogeneous disaster information in
 ```
 historical disaster conditions (demo: Helene) + incoming observations
  → normalized spatiotemporal data (Tiger Cloud: TimescaleDB + PostGIS)
- → AI understanding (OpenAI) → incident / task (code-guarded)
+ → AI understanding (LLM via OpenRouter, Qwen by default) → incident / task (code-guarded)
  → geospatial volunteer matching (PostGIS KNN + closure-aware road routing)
  → adaptation to changing conditions (reroute / reassign / escalate)
  → human action (accept → GPS on scene → mark complete) → updated operational state
@@ -32,7 +32,7 @@ We are explicit about what generalizes and what exists only for the demo.
 
 | Component | Status | Notes |
 |---|---|---|
-| Free-text understanding (reports, coded radio traffic) | **REAL** | OpenAI structured outputs; works on any text |
+| Free-text understanding (reports, coded radio traffic) | **REAL** | LLM structured outputs (OpenRouter → Qwen by default, or OpenAI), validated against Pydantic schemas; works on any text |
 | Geocoding | **REAL** | Nominatim bounded to Buncombe + on-disk cache; road/intersection reports resolved against the OSM road network in PostGIS |
 | Observation → incident linking | **REAL (AI-decided)** | SQL only narrows candidates (5 km / 48 h recall knob); the LLM decides ATTACH vs NEW with reasoning, stored in `incident_links` |
 | Incident → task | **REAL (AI-proposed, code-enforced)** | `task_validator.py`: assistance tasks need a direct human-need report; hazards only yield VERIFY_CONDITION when uncertain; no duplicates |
@@ -90,7 +90,7 @@ Known limits: HAND uses *named* NHD streams only (overstates height near unnamed
 # then apply backend/app/schema.sql once
 uv venv backend/.venv && uv pip install --python backend/.venv/bin/python \
   fastapi "uvicorn[standard]" "psycopg[binary]" psycopg-pool openai python-dotenv httpx pyyaml osmnx requests
-cp backend/.env.example backend/.env                   # add OPENAI_API_KEY
+cp backend/.env.example backend/.env                   # add OPENROUTER_API_KEY (or OPENAI_API_KEY)
 for s in fetch_ncdot fetch_usgs load_tiger_acs load_nhc build_graph load_db; do backend/.venv/bin/python backend/scripts/$s.py; done
 (cd backend && .venv/bin/uvicorn app.main:app --port 8000)
 (cd frontend && npm install && npm run dev)            # http://localhost:5173/command

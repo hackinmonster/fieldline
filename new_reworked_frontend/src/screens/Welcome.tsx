@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, MessageSquareText, Users } from 'lucide-react'
 import { useStore } from '../lib/store'
 import MapCanvas from '../components/MapCanvas'
-import { Alert, Button } from '../components/ui'
-import { dayTime } from '../lib/format'
+import { Button } from '../components/ui'
 
 /** "French Broad River At Asheville, NC" → "French Broad River" */
 const riverName = (name: string) => name.split(/ at /i)[0]
 
 export default function Welcome() {
-  const { snap, mode, profile, setProfile, signInAs } = useStore()
+  const { snap, profile, setProfile, signInAs } = useStore()
   const nav = useNavigate()
   const [phone, setPhone] = useState(profile.phone)
   const [code, setCode] = useState('')
@@ -79,7 +78,6 @@ export default function Welcome() {
                 value={code} aria-invalid={!!err} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} autoFocus />
             </label>
             {err && <p className="field-error" role="alert">{err}</p>}
-            <p className="hint">No SMS service is connected in this build. Any 6 digits continue.</p>
             <Button variant="primary" size="lg" block icon={ArrowRight} type="submit">Continue</Button>
             <button type="button" className="linkish" onClick={() => setStage('phone')}>Use a different number</button>
           </form>
@@ -102,9 +100,6 @@ export default function Welcome() {
           <button className="linkish welcome-alt" onClick={() => setStage('roster')}>
             <Users size={16} aria-hidden /> Sign in from a coordinator roster
           </button>
-        )}
-        {mode === 'demo' && stage === 'phone' && (
-          <Alert tone="route" title="Demo data">The backend is not reachable, so this runs on the saved demo scenario: Hurricane Helene, Buncombe County, NC, {snap ? dayTime(snap.clock.sim_now) : 'Sep 29, 2024'}. You will play Jordan Reyes.</Alert>
         )}
       </div>
     </div>
